@@ -1,77 +1,99 @@
 # Design
 
-A static page showing all of a person's GitHub activity: commits, repos created or forked, issues, PRs and discussions, including work in other people's repos, plus general profile facts. Private work is recorded too, and shown at a level of detail the owner picks per repo or org.
+A static page showing all of a person's public GitHub activity: commits, repos created or forked, issues, PRs and discussions, including work in other people's repos, plus general profile facts. Private repos are left out of v1 and planned as a later feature (see [Future: private repos](#future-private-repos)).
 
-The first user is the author (`jonocodes`), so examples and measurements use that account. The tool itself must have no hard-coded user: a fork works with nothing but config and secrets.
+The first user is the author (`jonocodes`), so examples and measurements use that account. The tool itself must have no hard-coded user: a fork works with nothing but Actions variables and secrets.
 
-Designed 2026-11-23 to 2026-11-24, before any code. Background (what GitHub shows natively, API limits, every existing tool considered and why each falls short): [research.md](research.md).
+Designed 2026-11-23 to 2026-11-24, before any code, and revised on 2026-11-24 after a review. Background (what GitHub shows natively, API limits, every existing tool considered and why each falls short): [research.md](research.md).
 
 ## Decisions
 
 | Decision | Why |
 |---|---|
-| Build our own instead of adopting a tool | Nothing existing covers commits, forks, issues, PRs and discussions together with history past 30 days and visibility rules (see research) |
+| Build our own instead of adopting a tool | Nothing existing covers commits, forks, issues, PRs and discussions together with history past 30 days (see research) |
 | Public repo, run hourly in GitHub Actions | Public repos get free Actions minutes. Every run shows in the Actions tab and can be started by hand (`workflow_dispatch`) |
 | Host on GitHub Pages, deployed straight from the workflow | Code, schedule, logs and site in one place. Deploys need no commits |
 | The page is pre-rendered HTML; it never queries a database | The views are simple filters and groupings over a few thousand public items. The renderer reads the data inside the Action and writes finished HTML: no data file to fetch, no sql.js |
 | One page with the full history | Measured: every public item pre-rendered is about 0.7 MB raw but about 60 KB compressed, since repeated markup compresses roughly 10×. Allow up to about 1.5 MB / 150 KB as commits fill in. Older years sit in collapsed sections |
-| No live fetch from GitHub in the browser | Events take 30 s to 6 h to appear, so it's barely fresher than hourly. It would also have to ship the hidden-repo list to the browser |
-| Optional state store: a SQLite file in a private Cloudflare R2 bucket | See [What the state store adds](#what-the-state-store-adds). Without it, every run fetches everything. The author's instance turns it on |
-| SQLite file in R2, not a hosted database | A run downloads one file of a few MB, queries locally, uploads it. Cloudflare D1 means an API round trip per query from Actions, and only fits once the code runs inside a Worker. Turso or Postgres add an account for no gain |
-| Visibility rules per repo or org, stored as an Actions secret | Lets the owner hide or anonymise things. A file in a public repo would leak the hidden list |
-| Collect private activity too (repo, commits, line counts) | Cheap with the same token. Stored; displayed only as the rules allow |
-| A template others fork: everything personal lives in config and secrets | Nobody edits code. Upstream ships `config.example.toml`; a fork adds `config.toml`, which upstream never touches, so "Sync fork" never conflicts. The user defaults to the repo owner |
+| No live fetch from GitHub in the browser | Events take 30 s to 6 h to appear, so it's barely fresher than hourly |
+| **v1 collects public data only; private repos are a later feature** (2026-11-24) | Privacy is the hard requirement, and the rules for showing private work had many unresolved edge cases. With a token that can only read public data, the build never sees anything private, so nothing private can leak: the token enforces it, not the code. Cost: the author's current private work isn't recorded until the feature exists. See [Future: private repos](#future-private-repos) |
+| The collector also drops anything marked private, whatever the token can see | Defence in depth: someone forking may paste a token with the `repo` scope. Dropped items are counted in the log, never named |
+| **No state store in v1; add it later** (2026-11-24) | Its main reason was private work, now deferred. Without it each hourly run fetches everything (about 3–5 min, free) and the data is thrown away afterwards; the page is the same. Design iteration doesn't suffer: locally, `just collect` fetches once and `just render` re-renders from that file as often as you like (see [Working on the page locally](#working-on-the-page-locally)). Cost: public pushes to non-main branches older than 30 days are lost until the store exists. See [Later: the state store](#later-the-state-store) |
+| Each run still writes a SQLite file (`state.db`), even without the store | Same format locally, in the Action, and for the store when it comes, so adding the store means persisting a file that already exists rather than changing the code path |
+| **Settings are Actions variables (env vars), not a committed file** (2026-11-24) | The author's own instance is the upstream repo, so a committed `config.toml` would reach every fork on "Sync fork". Actions variables live in each repo's settings and forks don't inherit them. Nothing in the settings is secret now. Every setting has a default, so a new fork needs none. Locally the same names come from `.env` through direnv. See [Settings](#settings) |
+| A template others fork; nobody edits code | Upstream never holds anyone's settings, so "Sync fork" never conflicts. The user defaults to the repo owner |
+| **Each commit is counted once, even when search finds it in several repos** (2026-11-24) | Commit search returns the same sha in a repo and again in every fork that contains it, which would count one commit several times. Keep one row per sha, credited to the repo that isn't a fork; if every hit is a fork, prefer the user's own fork. A commit that exists only in a fork stays credited to that fork, since it may never have been merged upstream |
 | Every stored item has a `source` (`github` first) | Hacker News is likely next, possibly custom (e.g. reading GoatCounter); Codeberg (Forgejo API) after that. Each source is a module writing to the same tables. A failing source keeps its last data and doesn't stop the run |
 | Combine all three prototype views | A stats strip (variant C) above a shared heatmap, then Feed (A) and Projects (B) tabs. Clicking a project filters the feed. Screenshots: [img/](img/) |
-| Pinned projects at the top of the Projects view | Defaults to GitHub's own pins (GraphQL `pinnedItems`, live each run). `pinned = [...]` in config overrides them and can include upstream projects or Codeberg repos |
-| List org memberships, including ones private on GitHub | Memberships are private by default on GitHub, not usually by choice. A rule can hide a single org. Needs `read:org` |
-| Archive the 30-day events feed from the first run (when state is on) | The only record of pushes to non-main branches and branch create/delete. History from before the first run can't be recovered |
+| Pinned projects at the top of the Projects view | Defaults to GitHub's own pins (GraphQL `pinnedItems`, live each run). `ACTIVITY_PINNED` overrides them and can include upstream projects or Codeberg repos |
+| List public org memberships only (2026-11-24) | Memberships are private by default on GitHub; publishing them is a private-data choice, deferred with private repos. REST `/users/<user>/orgs` lists only public memberships whatever the token, and needs no scope |
+| Archive the 30-day events feed once the state store exists | The only record of pushes to non-main branches and branch create/delete. History from before the first run can't be recovered |
 | Achievements: a link only | No API exists. Link to `github.com/<user>?tab=achievements` |
-| TypeScript | Runs on Node in Actions now, and in a Cloudflare Worker if it ever moves there |
+| **Dates: stored in UTC, grouped in the owner's time zone, ages shown by the browser** (2026-11-24) | A page rendered hourly in UTC can't say "today": it goes stale when a run fails and is wrong for most visitors. The prototype already put "yesterday" items under the previous week. See [Dates and time zones](#dates-and-time-zones) |
+| **TypeScript on Node 24** (2026-11-24) | Node 24 runs `.ts` files directly (type stripping) and has `node:sqlite` and `node:test` built in: no build step, no native modules, few dependencies. It's on the Actions runners already, and the code could move to a Cloudflare Worker later. Bun would also work; Node needs nothing extra |
+| **Dev environment: flox plus direnv** (2026-11-24) | The author's standard setup. `.envrc` activates flox and loads `.env` |
+| **Keep-alive by re-enabling the workflow through the API, not by committing** (2026-11-24) | GitHub turns off scheduled workflows after 60 days without repo activity, and this repo's runs never commit. Each run calls `gh workflow enable` with `GITHUB_TOKEN` (`actions: write`), so the repo needs no extra commits. This is the approach `keepalive-workflow` uses in its API mode; to be confirmed once built |
 | Not doing: RSS output, SVG README cards, a public sql.js query box | Not wanted for now. SVG cards matter only for embedding in a GitHub profile README (GitHub strips everything but images). A public `.db` plus sql.js could be added later at little cost |
 
 ## Architecture
 
 ```
 GitHub Actions (hourly)
-  ├─ [state on] download state.db from a private R2 bucket
-  ├─ fetch from GitHub (all, or only what's new) ──► state.db ──► [state on] upload back to R2
-  └─ render HTML from state.db, applying config + rules ──► dist/ ──► GitHub Pages
+  ├─ collect: fetch all public data from GitHub ──► state.db (on the runner, discarded after the run)
+  └─ render: state.db + settings ──► dist/ ──► GitHub Pages
 ```
 
 Visitors always get the last deployed static page, instantly. The run time only matters to the Action.
 
-The first run starts from an empty `state.db` and fetches the full history; that is the backfill, with no separate code path. With state on, later runs only fetch what's new and never delete an item that disappeared from GitHub (they mark it gone). To see everything, including private data, download `state.db` and open it with Datasette or `sqlite3`.
+Every v1 run starts from an empty `state.db` and fetches the full history, so there's no separate backfill code path. Once the state store exists, runs will start from the stored copy and fetch only what's new.
 
-### What the state store adds
+### Working on the page locally
 
-Nearly everything on the page can be fetched again from GitHub on every run. State matters only for things GitHub forgets.
+Collecting and rendering are separate steps, and `state.db` stays on your disk between them (it's gitignored):
+
+```
+just collect   →  fetches from GitHub once (a few minutes)  →  state.db
+just render    →  state.db + settings → dist/index.html      →  under a second, no network
+just dev       →  re-renders on every save and serves dist/  →  edit, refresh
+```
+
+Fetch once, then iterate on the page as often as you like; run `just collect` again only for fresher data. The tests render from recorded fixtures instead, and `just dev` can too, so design work needs no token at all. To explore the data, open `state.db` with Datasette or `sqlite3`.
+
+### Later: the state store
+
+Not in v1 (decided 2026-11-24). The plan: keep `state.db` between runs, so a run fetches only what's new and never deletes an item that disappeared from GitHub (it marks it gone). Nearly everything on the page can be fetched again on every run; the store matters only for things GitHub forgets, and for speed.
 
 | Data | Re-fetchable any time? | What a stored copy adds | Value |
 |---|---|---|---|
 | Issues, PRs, comments, discussions | Yes, back to 2012 | Survives the repo being deleted, made private, or access lost | Small |
 | Commits on main branches, with line counts | Yes, while the repo is readable | Same as above | Small for public repos |
-| **Private work at a job you later leave** | **No.** After leaving, GitHub keeps only anonymous daily counts | Org, repos, commit and line counts survive the job change | **The main reason** |
+| Private work at a job you later leave | **No.** After leaving, GitHub keeps only anonymous daily counts | Org, repos, commit and line counts survive the job change | Was the main reason; deferred with [private repos](#future-private-repos) |
 | Pushes to non-main branches; branch create/delete | Only for 30 days (events). Walking the branches of your own repos covers branches that still exist, and PRs keep their commits after a branch is deleted | Branches deleted without a PR; repos you can't read | Small |
 | Followers, stars received | Current values only (stars have dates, followers don't) | Growth over time | Vanity |
-| Daily counts incl. private totals; pins; orgs; profile | Yes, live | Nothing | None |
+| Daily counts incl. the anonymous private total; pins; orgs; profile | Yes, live | Nothing | None |
 | **Speed** | A full fetch: measured 99 s for issues, PRs, comments and discussions with sequential requests, plus at least a minute of commit search (30 searches a minute). Roughly 3–5 min, less with parallel requests | Incremental runs take seconds | Practical; matters more for bigger histories |
 
-Other state stores a fork could use later, behind the same interface: S3, or `state.db` encrypted with a key from Actions secrets and committed to a separate branch (needs no account beyond GitHub).
+Where to keep it, behind one interface:
+- **A private Cloudflare R2 bucket** (the original plan). A SQLite file rather than a hosted database: a run downloads one file of a few MB, queries locally, uploads it. Cloudflare D1 means an API round trip per query from Actions, and only fits once the code runs inside a Worker. Turso or Postgres add an account for no gain.
+- **The GitHub Actions cache,** free and with no extra account. GitHub can evict it, so it suits speed rather than a durable archive. Being researched in [research-actions-cache.md](research-actions-cache.md).
+- **Others:** S3, or `state.db` encrypted with a key from Actions secrets and committed to a separate branch.
+
+Safety rules for whichever store, from the 2026-11-24 review: a failed download must not count as a first run, or an empty database gets uploaded over the real one. Fail on any error other than "not found", refuse to upload a database with fewer rows than the one downloaded, and keep dated snapshots (R2 has no object versioning).
 
 ### Data sources
 
-Live numbers and the limits behind each are in [research.md](research.md).
+Live numbers and the limits behind each are in [research.md](research.md). In v1 every source is read with a public-only token, and anything marked private is dropped on arrival.
 
 | Data | Source | Notes |
 |---|---|---|
-| Profile: created, location, company, website, followers, orgs, gists, stars given, pins | GraphQL `viewer` | Author's account created 2012-01-06; 8 orgs, all private on the public profile |
-| Repos owned, forks and their upstream, stars and forks received | GraphQL `viewer.repositories` | `isFork`, `parent`, `isPrivate`, language, topics |
-| Issues, PRs, issue comments, commit comments, discussions, discussion replies | GraphQL `viewer.issues`, `pullRequests`, `issueComments`, `commitComments`, `repositoryDiscussions`, `repositoryDiscussionComments` | Full history, no time window. Newest first; with state, stop at the last item stored |
-| Commits (sha, message, date) | REST commit search `author:<user>`, sliced by date | Main branches only; at most 1000 results per query, so slice by year or month |
-| Commit line counts (incl. private) | GraphQL `history(author: {id})` on each repo's default branch: `additions`, `deletions` | Tested on a private org repo: 401 commits in a year, 1 point per 100 commits. Works with the `repo` scope |
-| Daily counts, reviews, private totals | GraphQL `contributionsCollection`, at most one year per query | All years once (2009–2026 for the author: 18 calls), then the current year |
-| Pushes to non-main branches, branch create/delete | REST `/users/<user>/events`, with ETags (a 304 is free) | GitHub keeps 30 days and 300 events; 300 covered about 10 days for the author, so hourly is plenty |
+| Profile: created, location, company, website, followers, gists, stars given, pins | GraphQL `user(login:)` | Author's account created 2012-01-06 |
+| Public org memberships | REST `/users/<user>/orgs` | Lists public memberships only, whatever the token. The author has 8 orgs, all private on the public profile, so none show until they make some public |
+| Repos owned, forks and their upstream, stars and forks received | GraphQL `repositories` | `isFork`, `parent`, `isPrivate` (drop if true), language, topics |
+| Issues, PRs, issue comments, commit comments, discussions, discussion replies | GraphQL `issues`, `pullRequests`, `issueComments`, `commitComments`, `repositoryDiscussions`, `repositoryDiscussionComments` | Full history, no time window. Newest first; with state, stop at the last item stored |
+| Commits (sha, message, date) | REST commit search `author:<user>`, sliced by date | Main branches only; at most 1000 results per query, so slice by year or month. The same commit can appear in a repo and its forks; it's counted once (see Decisions) |
+| Commit line counts | GraphQL `history(author: {id})` on each public repo's default branch: `additions`, `deletions` | 1 point per 100 commits (measured on a 401-commit repo) |
+| Daily counts, reviews, anonymous private total | GraphQL `contributionsCollection`, at most one year per query | All years once (2009–2026 for the author: 18 calls), then the current year. `restrictedContributionsCount` is a bare number with no repo; check in build step 2 that it comes through a public-only token |
+| Pushes to non-main branches, branch create/delete | REST `/users/<user>/events`, with ETags (a 304 is free) | GitHub keeps 30 days and 300 events; 300 covered about 10 days for the author, so hourly is plenty. Drop events with `public: false` |
 | Later: commits on every branch of your own repos | REST commits per branch, only for repos whose `pushed_at` changed | Idea from kibotu/git-history-timeline (see research) |
 
 ### SQLite schema (sketch)
@@ -81,11 +103,13 @@ Every row carries `source`.
 - `profile`: one row per run (date, followers, stars received, …)
 - `repos`: name_with_owner, owner, is_private, is_fork, parent, created_at, pushed_at, language, stars, description, gone_at
 - `items`: node_id, kind (issue, pr, issue_comment, commit_comment, discussion, discussion_reply, review), repo, created_at, title, url, state, merged_at, gone_at
-- `commits`: sha, repo, authored_at, first line of message, additions, deletions
+- `commits`: sha (one row per commit), repo, authored_at, first line of message, additions, deletions
 - `events`: event id, type, repo, branch, created_at
-- `orgs`: login, name, membership public or not
+- `orgs`: login, name
 - `calendar`: date, total. `year_totals`: year, commits, issues, prs, reviews, restricted
-- `runs`: started, finished, API calls used, error
+- `runs`: started, finished, API calls used, items dropped as private, error
+
+`is_private` is always false in v1; it stays for the private-repos feature. All timestamps are stored in UTC.
 
 Size: a few MB, mostly commits and line counts. Measured: 1568 public items made a 380 KB SQLite file.
 
@@ -96,9 +120,10 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
   - the heatmap;
   - pinned projects;
   - Feed and Projects tabs;
-  - older years in collapsed sections.
+  - older years in collapsed sections;
+  - a footer saying when the page was last updated.
 
-  It's pre-rendered, with a little JavaScript for the filter chips and tabs.
+  It's pre-rendered, with a little JavaScript for the filter chips, the tabs and item ages.
 - **Theme:** follows the system light/dark setting. The author wants it to look like their blog (`jonocodes/blog`, Eleventy, `public/css/index.css`); a fork gets a neutral default.
 - **URL:** `<user>.github.io/activity/` or a custom domain. For the author, `activity.dgt.is`: the blog is a separate Pages project on `www.dgt.is`, so the page can't sit at `www.dgt.is/activity/`. The blog menu links to it.
 - **Feed rules carried over from the prototype:**
@@ -106,74 +131,76 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
   - bursts of issues should collapse the same way ("opened 12 issues in X");
   - issue comments are hidden by default.
 
+### Dates and time zones
+
+- **Stored in UTC.** Every timestamp in `state.db` is UTC.
+- **Days and weeks are the owner's.** The page describes the owner's days, so `ACTIVITY_TIMEZONE` (an IANA name, default `UTC`) decides which day an item falls on. That covers collapsing same-day commits, the week headings, the year sections and the habits chart.
+- **No relative words baked into the HTML.** Each item renders as `<time datetime="2026-11-23T18:04:00Z">Nov 23</time>`, with the date in the owner's time zone. Without JavaScript that's what visitors see.
+- **Ages are durations, computed in the browser.** The script rewrites items under a week old as "12 min ago", "5 h ago" or "3 d ago", worked out when the page is viewed. A duration means the same in every time zone, so it can never contradict a week heading the way a calendar word like "yesterday" can.
+- **The footer** shows when the page was built, so a stale page is obvious.
+- **The heatmap** uses GitHub's calendar as given. GitHub decides its day boundaries, so near midnight they may differ slightly from the feed's. That's acceptable.
+
 ## Workflow
 
 ```yaml
 on:
   schedule: [{ cron: '23 * * * *' }]   # hourly; avoid :00, which GitHub delays at busy times
   workflow_dispatch: {}
-concurrency: { group: activity, cancel-in-progress: false }   # one writer of state.db at a time
+permissions: { contents: read, pages: write, id-token: write, actions: write }   # actions: write for the keep-alive
+concurrency: { group: activity, cancel-in-progress: false }   # one run at a time (one writer of state.db, once there's a store)
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: github-pages
+    env:
+      GH_PAT: ${{ secrets.GH_PAT }}
+      ACTIVITY_VARS: ${{ toJSON(vars) }}     # every Actions variable; the code reads the ACTIVITY_* ones
     steps:
-      - uses: actions/checkout@v4
-      - run: npx wrangler r2 object get activity-state/state.db --file state.db --remote || true   # state on only
-      - run: node collect.js && node render.js        # GH_PAT and ACTIVITY_RULES come from secrets
-      - run: npx wrangler r2 object put activity-state/state.db --file state.db --remote          # state on only
+      - uses: actions/checkout@v5            # pin current major versions when building
+      - uses: actions/setup-node@v5
+        with: { node-version: 24 }
+      - run: npm ci
+      - run: node src/collect.ts && node src/render.ts
+      - run: gh workflow enable build.yml    # keep-alive
+        env: { GH_TOKEN: '${{ github.token }}' }
       # then actions/upload-pages-artifact + actions/deploy-pages with dist/
 ```
 
 Gotchas:
-- **Logs are public.** The job prints counts only, never names from private repos.
-- **Disabled schedules:** GitHub turns off scheduled workflows in a public repo after 60 days without repo activity. Deploys don't commit, so add a keep-alive (e.g. a monthly commit).
+- **Logs are public.** The job prints counts, not item titles.
+- **Disabled schedules:** GitHub turns off scheduled workflows in a public repo after 60 days without repo activity. The keep-alive step above handles it without commits.
 - **Forks:** Actions stay off in a fork until its owner enables them in the Actions tab. That's a setup step to document.
-- **Secrets:** the personal token, the rules and the Cloudflare token are Actions secrets. The built-in `GITHUB_TOKEN` only sees its own repo, so it can't be used.
+- **Secrets:** only `GH_PAT` in v1. The built-in `GITHUB_TOKEN` only sees its own repo, so it can't do the collecting.
 
-## Config
+## Settings
 
-`config.toml` is public and holds no secrets. See [config.example.toml](../config.example.toml).
+All optional, set as Actions variables (Settings → Secrets and variables → Actions → Variables). Locally, put them in `.env` (see [.env.example](../.env.example)); direnv loads it. The workflow passes every variable in at once (`toJSON(vars)`), so adding a setting never means editing the workflow. An unknown `ACTIVITY_*` name or a bad value fails the run with a clear message, so typos don't go unnoticed.
 
-## Visibility rules
-
-Stored in the `ACTIVITY_RULES` secret (TOML). See [rules.example.toml](../rules.example.toml). Matching is `owner/*` or `owner/repo`; the most specific rule wins. Rules apply at render time, except `ignore`, which applies at collection time.
-
-| Level | Page shows | Stored |
+| Variable | Default | What it does |
 |---|---|---|
-| `full` | Everything: repo name, titles, links | Yes |
-| `org` | The org name with counts and line totals; no repo names or titles | Yes |
-| `anonymous` | Counted in totals only ("private work") | Yes |
-| `hidden` | Nothing | Yes |
-| `ignore` | Nothing | Never collected |
-
-Defaults: public repos `full`, private repos `org`.
-
-### Past private work
-
-GitHub keeps counting work in private repos you can no longer access, but won't say where it was. For the author, `contributionsCollection` reports restricted contributions of 52 in 2015, 74 in 2016, 109 in 2017 and 122 in 2018, with no repo, and the token sees no private repo created before 2020. `read:user` doesn't help; it only details repos you can still read.
-
-Two ways to show the org anyway:
-- **`[[period]]` rules from a CV:** restricted counts inside a date range are credited to a named org. The page marks this as the owner's claim, not GitHub's.
-- **Old clones:** `git log --author=… --numstat` gives exact commits and line counts, imported as a manual source.
+| `ACTIVITY_USER` | the repo owner | GitHub login to build the page for |
+| `ACTIVITY_TITLE` | `<user> on GitHub` | Page title |
+| `ACTIVITY_TIMEZONE` | `UTC` | IANA time zone that decides which day an item falls on |
+| `ACTIVITY_PINNED` | your GitHub pins | Comma-separated `owner/repo` list shown at the top of Projects |
+| `ACTIVITY_SECTIONS` | all except `habits` | Comma-separated: `stats`, `heatmap`, `pinned`, `feed`, `projects`, `orgs`, `languages`, `habits` |
+| `ACTIVITY_FEED_COMMENTS` | `false` | Show issue comments in the feed |
 
 ## Token
 
-A dedicated token, stored as the `GH_PAT` Actions secret.
-- **Simplest:** a classic PAT with `repo`, `read:user` and `read:org`. Downside: `repo` also grants write access.
-- **Least privilege:** read-only fine-grained PATs, but each covers a single owner (the user, plus one per org), and org tokens may need admin approval. Orgs can also block classic PATs or require SSO approval.
+A dedicated token, stored as the `GH_PAT` Actions secret: a fine-grained PAT with repository access set to **Public repositories (read-only)** and no extra permissions. It's read-only, can't see anything private, and needs no org approval. A classic PAT with no scopes ticked is the fallback; it's also public read-only.
+
+Build step 2 checks that every query works with this token. GraphQL has had gaps with fine-grained tokens, and the anonymous private total may depend on the profile's "private contributions" setting.
 
 ## Testing
 
 - **Recorded fixtures** of GraphQL and REST responses, so collect and render run without the network.
-- **Render as a pure function of (database, config, rules),** checked against snapshot HTML.
-- **Privacy tests:**
-  - no name of a `hidden`, `anonymous` or `org`-level repo appears in `dist/`;
-  - none appears in the job's log output.
+- **Render as a pure function of (database, settings),** checked against snapshot HTML.
+- **Privacy test:** the fixtures include private items as a too-powerful token would return them, each carrying a canary string such as `CANARY-PRIVATE`. The test fails if a canary reaches `state.db`, `dist/` or the job's log output.
 - **A live smoke test,** run by hand or with `workflow_dispatch`.
 
 ## Prototype
 
-The three views were prototyped as a throwaway page with real public data. The code is on the [`prototype/views`](https://github.com/jonocodes/activity/tree/prototype/views) branch, not `main`. It's a standalone `prototype/index.html`, switchable with `?variant=A|B|C` or the ← → keys.
+The three views were prototyped as a throwaway page with real public data. The code is kept under the [`archive/prototype-views`](https://github.com/jonocodes/activity/tree/archive/prototype-views) tag (it was the `prototype/views` branch). Future prototypes go straight on `main`. It's a standalone `prototype/index.html`, switchable with `?variant=A|B|C` or the ← → keys.
 
 The same branch has the probe scripts behind the measurements:
 - `build_fixture.py`, with its GraphQL query in `q.graphql`;
@@ -187,24 +214,77 @@ Verdict: the author liked all three, which led to the combined layout above.
 Each step ends with tests passing and the README updated.
 
 1. **Skeleton:**
-   - TypeScript project;
+   - flox environment and `.envrc` (activates flox, loads `.env`);
+   - TypeScript on Node 24, run directly with no build step;
    - Justfile (`just test`, `just collect`, `just render`, `just dev`);
-   - test runner;
-   - the SQLite adapter.
-2. **GitHub collector into SQLite,** driven by recorded fixtures: profile, repos, the GraphQL connections, `contributionsCollection` by year, commit search slices, line counts.
-3. **Config and rules loading;** a render model that applies them, plus the privacy tests.
-4. **Renderer:** the combined page, built from the prototype views, as snapshot-tested HTML.
-5. **Workflow:** scheduled Action deploying to Pages, stateless at first.
-6. **State store:** R2 download and upload, incremental fetching, the events archive, `gone_at`.
-7. **Later:**
+   - `node:test`;
+   - the SQLite adapter on `node:sqlite`.
+2. **GitHub collector into SQLite,** driven by recorded fixtures: profile, public orgs, repos, the GraphQL connections, `contributionsCollection` by year, commit search slices, line counts. Drops private items. Confirms the public-only token works for every query.
+3. **Settings from env vars,** validated; a render model; the privacy test.
+4. **Renderer:** the combined page, built from the prototype views, as snapshot-tested HTML, with dates as in [Dates and time zones](#dates-and-time-zones).
+5. **Workflow:** scheduled Action deploying to Pages, with the keep-alive.
+6. **Later:**
+   - [state store](#later-the-state-store): incremental fetching, the events archive, `gone_at`;
+   - [private repos](#future-private-repos);
    - branch walk;
-   - `[[period]]` rules;
    - Hacker News source;
    - Codeberg source;
    - custom domain.
 
 ## Open questions
 
-- **`[[period]]`:** which past employers, dates and org names, and do any old clones survive?
-- **Runtime:** Node or Bun?
-- **Test runner:** which one?
+None right now. The [Actions cache research](research-actions-cache.md) feeds the state store decision later.
+
+## Future: private repos
+
+Deferred on 2026-11-24. Everything here was designed before the review and needs a fresh decision before it's built. Build it while the author still has access to their current job's repos, or that history survives only in local clones.
+
+### What it would add
+
+The same token, with private access (a classic PAT with `repo`, `read:user` and `read:org`; `repo` also grants write access. Fine-grained tokens cover one owner each, org tokens may need admin approval, and orgs can block classic PATs or require SSO). It would collect private repos, commits and line counts, private org memberships and private events, and show each at a level the owner picks. History from a job you later leave is the reason for the state store.
+
+### Visibility rules (draft)
+
+Stored as an `ACTIVITY_RULES` secret (TOML), since a file in the public repo would publish the list of things being hidden. Matching is `owner/*` or `owner/repo`; the most specific rule wins. Rules apply at render time, except `ignore`, which applies at collection time.
+
+| Level | Page shows | Stored |
+|---|---|---|
+| `full` | Everything: repo name, titles, links | Yes |
+| `org` | The org name with counts and line totals; no repo names or titles | Yes |
+| `anonymous` | Counted in totals only ("private work") | Yes |
+| `hidden` | Nothing | Yes |
+| `ignore` | Nothing | Never collected |
+
+```toml
+default_public = "full"
+default_private = "anonymous"
+
+[[rule]]
+match = "some-client-org/*"
+level = "anonymous"
+
+# Credit private work you can no longer access (GitHub reports it only as anonymous counts)
+# to an org for a date range. Shown on the page as your claim, not GitHub's.
+[[period]]
+org = "Former Employer"
+from = "2015-03"
+to = "2018-06"
+```
+
+### Past private work
+
+GitHub keeps counting work in private repos you can no longer access, but won't say where it was. For the author, `contributionsCollection` reports restricted contributions of 52 in 2015, 74 in 2016, 109 in 2017 and 122 in 2018, with no repo, and the token sees no private repo created before 2020. `read:user` doesn't help; it only details repos you can still read.
+
+Two ways to show the org anyway:
+- **`[[period]]` rules from a CV:** restricted counts inside a date range are credited to a named org. The page marks this as the owner's claim, not GitHub's.
+- **Old clones:** `git log --author=… --numstat` gives exact commits and line counts, imported as a manual source.
+
+### To decide before building
+
+From the 2026-11-24 review:
+- **Safe defaults for forks.** The old draft had `default_private = "org"`, which publishes a new user's employer name, commit counts and line totals before they've written any rules. Default to `anonymous`, and keep private org memberships off unless the owner opts in.
+- **Renamed repos.** Rules match by name, so renaming a hidden public repo makes it fall back to `full`. Match on the repo's node ID too, or warn when a rule matches nothing.
+- **Repos that disappear.** A repo marked `gone` may have been made private. Render a gone repo as private, whatever visibility was stored earlier.
+- **Titles leak more than names.** Private issue titles, commit messages, branch names and URLs need the same checks as repo names. Extend the canary test to every field.
+- **Log masking.** At the start of each job, emit `::add-mask::` for every private repo and org name, so Actions hides them in all later output, including errors like "Could not resolve repository org/private". This is defence in depth alongside the tests: it doesn't cover `dist/`, and step debug logging is a risk.
+- **Which past employers, dates and org names** go in `[[period]]`, and do any old clones survive?

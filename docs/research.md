@@ -10,7 +10,7 @@ Researched 2026-11-23 for GitHub login `jonocodes` (confirmed with `gh api user 
 - **The APIs together can rebuild almost everything, back to 2012.** The GraphQL `User` connections (`issues`, `pullRequests`, `issueComments`, `repositoryDiscussions`, `repositoryDiscussionComments`, `commitComments`) are not time-limited. They returned your first items from 2012 and matched search totals exactly (419 issues, 1069 PRs). Commits are the weak spot. `contributionsCollection` gives per-repo daily counts, one year per query. Commit search gives real commits, but only on default branches and only 1000 results per query.
 - **The Events API is now a 30-day window, not 90.** The docs now say 30 days and 300 events. For you, 300 events covered only about 10 days (2026-11-13 to 2026-11-23). Since 2025-10-07, `PushEvent` payloads have no commit list ([events docs](https://docs.github.com/en/rest/activity/events), [changelog](https://github.blog/changelog/2025-08-08-upcoming-changes-to-github-events-api-payloads/), checked live). Keeping events beyond 30 days means polling and storing them yourself.
 - **No existing tool covers the whole list.** README-card tools (`metrics`, `github-readme-stats` and its successor) show totals or the last ~30 days. `lowlighter/metrics` has had no commit since 2023-12, `github-readme-stats` is officially unmaintained, and OSS Insight shuts down on 2026-12-04. `dogsheep/github-to-sqlite` is built around repositories, not users: it has no events and no discussions.
-- **Recommendation:** a small script of your own, about 200 lines, run by a systemd timer on lute (or a scheduled Action). It pulls the GraphQL connections and commit search into SQLite, polls `/users/jonocodes/events` with ETags so the history keeps growing, and exports a JSON file with private repos filtered out. The blog ([jonocodes/blog](https://github.com/jonocodes/blog), Eleventy) renders that JSON from `_data/` at build time. Datasette on the same SQLite file gives you a private, searchable view on the tailnet at no extra cost. A full backfill is under 200 API calls.
+- **Recommendation:** a small script of your own, about 200 lines, run by a systemd timer on a home server (or a scheduled Action). It pulls the GraphQL connections and commit search into SQLite, polls `/users/jonocodes/events` with ETags so the history keeps growing, and exports a JSON file with private repos filtered out. The blog ([jonocodes/blog](https://github.com/jonocodes/blog), Eleventy) renders that JSON from `_data/` at build time. Datasette on the same SQLite file gives you a private, searchable view on the tailnet at no extra cost. A full backfill is under 200 API calls.
 
 ## 1. What GitHub shows natively
 
@@ -202,10 +202,10 @@ None keeps durable history, covers discussions and forks, or has visibility rule
 
 ### Architecture
 
-1. **Collector:** a Python or Node script using GraphQL plus REST search, writing to `github.db` (SQLite, upserts keyed on node ID or event ID). Run it from a systemd timer on lute (this repo already manages lute), or from a scheduled Action in the blog repo.
-2. **Token:** a classic PAT with `read:user` and `repo`. `read:user` is needed for private contribution details. The Actions `GITHUB_TOKEN` is limited to one repo and is not you. A public page must not need private data: filter on `repository.isPrivate` before export. The current token already sees private repos such as `Terradot/monorepo` in commit search.
+1. **Collector:** a Python or Node script using GraphQL plus REST search, writing to `github.db` (SQLite, upserts keyed on node ID or event ID). Run it from a systemd timer on a home server, or from a scheduled Action in the blog repo.
+2. **Token:** a classic PAT with `read:user` and `repo`. `read:user` is needed for private contribution details. The Actions `GITHUB_TOKEN` is limited to one repo and is not you. A public page must not need private data: filter on `repository.isPrivate` before export. The current token already sees private org repos in commit search.
 3. **Publish:** export a filtered `activity.json` into the blog's `_data/`. Eleventy picks up global data files there ([blog repo](https://github.com/jonocodes/blog) already has `_data/`). Render a timeline plus a per-repo table.
-4. **Private view (optional):** `datasette github.db` behind the tailnet gives you full SQL and faceting, including private items ([Datasette](https://github.com/simonw/datasette)).
+4. **Private view (optional):** `datasette github.db` on a private network gives you full SQL and faceting, including private items ([Datasette](https://github.com/simonw/datasette)).
 
 ### What to pull
 
@@ -226,9 +226,9 @@ None keeps durable history, covers discussions and forks, or has visibility rule
 
 ### Gotchas
 
-- **Scheduled Actions stop in quiet repos.** In a public repo, scheduled workflows are disabled after 60 days without repo activity ([Actions docs](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-workflow-runs/disabling-and-enabling-a-workflow)). Committing the JSON keeps the repo active. A lute timer avoids the problem and keeps the PAT off GitHub.
+- **Scheduled Actions stop in quiet repos.** In a public repo, scheduled workflows are disabled after 60 days without repo activity ([Actions docs](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-workflow-runs/disabling-and-enabling-a-workflow)). Committing the JSON keeps the repo active. A home-server timer avoids the problem and keeps the PAT off GitHub.
 - **Profile counts and the API differ** for commits on non-default branches, commits in forks and commits from unlinked emails ([reference](https://docs.github.com/en/account-and-profile/reference/profile-contributions-reference)). The page should say what it counts.
-- **Commit search also finds your commits in other people's forks.** The first 100 `author:jonocodes -user:jonocodes` hits were 99 in `Terradot/monorepo` (private) and 1 in `adamhalama/t3code`, someone else's fork. Decide whether to group forks under their upstream with `parent`, and drop private repos before publishing.
+- **Commit search also finds your commits in other people's forks.** The first 100 `author:jonocodes -user:jonocodes` hits were 99 in a private org repo and 1 in `adamhalama/t3code`, someone else's fork. Decide whether to group forks under their upstream with `parent`, and drop private repos before publishing.
 
 ### Trade-offs against an existing tool
 
@@ -241,7 +241,7 @@ None keeps durable history, covers discussions and forks, or has visibility rule
 Make the SQLite file the source of truth and publish it twice.
 
 1. Export a filtered public copy (private rows dropped) and serve it with Datasette, or render it statically. Visitors can then browse your full public history with real faceting by repo, type and year.
-2. Keep the unfiltered copy private on lute.
+2. Keep the unfiltered copy private on the home server.
 
 Both come from one collector and one schema, so the website and your own dashboard are the same data at different privacy levels.
 
