@@ -75,7 +75,8 @@ Not in v1 (decided 2026-11-24). The plan: keep `state.db` between runs, so a run
 
 Where to keep it, behind one interface:
 - **A private Cloudflare R2 bucket** (the original plan). A SQLite file rather than a hosted database: a run downloads one file of a few MB, queries locally, uploads it. Cloudflare D1 means an API round trip per query from Actions, and only fits once the code runs inside a Worker. Turso or Postgres add an account for no gain.
-- **The GitHub Actions cache,** free and with no extra account. GitHub can evict it, so it suits speed rather than a durable archive. Being researched in [research-actions-cache.md](research-actions-cache.md).
+- **The GitHub Actions cache,** free and with no extra account. An entry used every hour won't age out, but restores occasionally fail during GitHub incidents, so it suits speed rather than being the only copy. Pattern, limits and the guard against saving a thinner copy over a good one: [research-actions-cache.md](research-actions-cache.md).
+- **Published next to the page on GitHub Pages.** The data is public anyway, so `dist/` could include `state.db` and the next run could download it from the site when the cache misses. Durable, no account, no expiry, and visitors could explore the raw data (e.g. in Datasette Lite). It makes the privacy test matter even more, since the file is public by design. Likely layering: cache first, then the Pages copy, then a full fetch.
 - **Others:** S3, or `state.db` encrypted with a key from Actions secrets and committed to a separate branch.
 
 Safety rules for whichever store, from the 2026-11-24 review: a failed download must not count as a first run, or an empty database gets uploaded over the real one. Fail on any error other than "not found", refuse to upload a database with fewer rows than the one downloaded, and keep dated snapshots (R2 has no object versioning).
@@ -156,7 +157,7 @@ jobs:
       GH_PAT: ${{ secrets.GH_PAT }}
       ACTIVITY_VARS: ${{ toJSON(vars) }}     # every Actions variable; the code reads the ACTIVITY_* ones
     steps:
-      - uses: actions/checkout@v5            # pin current major versions when building
+      - uses: actions/checkout@v6            # pin current major versions when building
       - uses: actions/setup-node@v5
         with: { node-version: 24 }
       - run: npm ci
