@@ -1,0 +1,19 @@
+query {
+  viewer {
+    login name avatarUrl
+    contributionsCollection {
+      totalCommitContributions totalIssueContributions totalPullRequestContributions totalPullRequestReviewContributions totalRepositoryContributions restrictedContributionsCount
+      contributionCalendar { totalContributions weeks { contributionDays { date contributionCount } } }
+      commitContributionsByRepository(maxRepositories: 50) { repository { nameWithOwner isPrivate isFork owner { login } primaryLanguage { name color } } contributions(first: 100) { totalCount nodes { occurredAt commitCount } } }
+      repositoryContributions(first: 50) { nodes { occurredAt repository { nameWithOwner isFork isPrivate parent { nameWithOwner } } } }
+    }
+    repositories(first: 100, ownerAffiliations: OWNER, orderBy: {field: PUSHED_AT, direction: DESC}) {
+      nodes { nameWithOwner description isFork isPrivate isArchived stargazerCount forkCount pushedAt createdAt parent { nameWithOwner } primaryLanguage { name color } }
+    }
+    pullRequests(first: 60, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount nodes { title url state createdAt mergedAt repository { nameWithOwner isPrivate owner { login } } } }
+    issues(first: 60, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount nodes { title url state createdAt repository { nameWithOwner isPrivate owner { login } } } }
+    repositoryDiscussions(first: 20, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount nodes { title url createdAt repository { nameWithOwner isPrivate } } }
+    repositoryDiscussionComments(first: 30) { totalCount nodes { url createdAt discussion { title url repository { nameWithOwner isPrivate } } } }
+    issueComments(last: 40) { totalCount nodes { url createdAt issue { title repository { nameWithOwner isPrivate } } } }
+  }
+}
