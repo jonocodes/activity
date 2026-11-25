@@ -18,3 +18,17 @@ Read [docs/design.md](docs/design.md) before any change. It is the source of tru
 - Markdown uses natural wrap, never hard-wrapped at 80 columns.
 - Bold ideas are welcome when they clearly help.
 - Early days: work directly on `main`, prototypes included; no feature branches needed. Archive old work with an `archive/...` tag and a pointer in the docs.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues on `jonocodes/activity`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: a root `GLOSSARY.md` and `docs/adr/`, both created when first needed, alongside the Decisions table in `docs/design.md`. See `docs/agents/domain.md`.
