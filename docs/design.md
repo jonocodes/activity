@@ -18,7 +18,7 @@ Designed 2026-11-23 to 2026-11-24, before any code, and revised on 2026-11-24 af
 | No live fetch from GitHub in the browser | Events take 30 s to 6 h to appear, so it's barely fresher than hourly |
 | **v1 collects public data only; private repos are a later feature** (2026-11-24) | Privacy is the hard requirement, and the rules for showing private work had many unresolved edge cases. With a token that can only read public data, the build never sees anything private, so nothing private can leak: the token enforces it, not the code. Cost: the author's current private work isn't recorded until the feature exists. See [Future: private repos](#future-private-repos) |
 | The collector also drops anything marked private, whatever the token can see | Defence in depth: someone forking may paste a token with the `repo` scope. Dropped items are counted in the log, never named |
-| **No state store in v1; add it later** (2026-11-24) | Its main reason was private work, now deferred. Without it each hourly run fetches everything (about 3–5 min, free) and the data is thrown away afterwards; the page is the same. Design iteration doesn't suffer: locally, `just collect` fetches once and `just render` re-renders from that file as often as you like (see [Working on the page locally](#working-on-the-page-locally)). Cost: public pushes to non-main branches older than 30 days are lost until the store exists. See [Later: the state store](#later-the-state-store) |
+| **No state store in v1; add it later** (2026-11-24) | Its main reason was private work, now deferred. Without it each hourly run fetches everything (about 3–5 min, free) and the data is thrown away afterwards; the page is the same. Design iteration doesn't suffer: locally, `just collect` fetches once and `just render` re-renders from that file as often as you like (see [Working on the page locally](#working-on-the-page-locally)). Cost: public pushes to non-main branches older than 30 days are lost until the store exists. When it comes, the leading option is text files on a `data` branch of this repo (2026-11-25). See [Later: the state store](#later-the-state-store) |
 | Each run still writes a SQLite file (`state.db`), even without the store | Same format locally, in the Action, and for the store when it comes, so adding the store means persisting a file that already exists rather than changing the code path |
 | **Settings are Actions variables (env vars), not a committed file** (2026-11-24) | The author's own instance is the upstream repo, so a committed `config.toml` would reach every fork on "Sync fork". Actions variables live in each repo's settings and forks don't inherit them. Nothing in the settings is secret now. Every setting has a default, so a new fork needs none. Locally the same names come from `.env` through direnv. See [Settings](#settings) |
 | A template others fork; nobody edits code | Upstream never holds anyone's settings, so "Sync fork" never conflicts. The user defaults to the repo owner |
@@ -73,13 +73,20 @@ Not in v1 (decided 2026-11-24). The plan: keep `state.db` between runs, so a run
 | Daily counts incl. the anonymous private total; pins; orgs; profile | Yes, live | Nothing | None |
 | **Speed** | A full fetch: measured 99 s for issues, PRs, comments and discussions with sequential requests, plus at least a minute of commit search (30 searches a minute). Roughly 3–5 min, less with parallel requests | Incremental runs take seconds | Practical; matters more for bigger histories |
 
-Where to keep it, behind one interface:
-- **A private Cloudflare R2 bucket** (the original plan). A SQLite file rather than a hosted database: a run downloads one file of a few MB, queries locally, uploads it. Cloudflare D1 means an API round trip per query from Actions, and only fits once the code runs inside a Worker. Turso or Postgres add an account for no gain.
-- **The GitHub Actions cache,** free and with no extra account. An entry used every hour won't age out, but restores occasionally fail during GitHub incidents, so it suits speed rather than being the only copy. Pattern, limits and the guard against saving a thinner copy over a good one: [research-actions-cache.md](research-actions-cache.md).
-- **Published next to the page on GitHub Pages.** The data is public anyway, so `dist/` could include `state.db` and the next run could download it from the site when the cache misses. Durable, no account, no expiry, and visitors could explore the raw data (e.g. in Datasette Lite). It makes the privacy test matter even more, since the file is public by design. Likely layering: cache first, then the Pages copy, then a full fetch.
-- **Others:** S3, or `state.db` encrypted with a key from Actions secrets and committed to a separate branch.
+Where to keep it (2026-11-25):
 
-Safety rules for whichever store, from the 2026-11-24 review: a failed download must not count as a first run, or an empty database gets uploaded over the real one. Fail on any error other than "not found", refuse to upload a database with fewer rows than the one downloaded, and keep dated snapshots (R2 has no object versioning).
+- **Leading option: text files on a `data` branch of this repo.** Each table is saved as sorted JSON lines, split by year (e.g. `commits/2024.jsonl`). A run rebuilds `state.db` from them in seconds, collects, writes them back, and commits only if something changed.
+  - No extra account or secret: the workflow's own `GITHUB_TOKEN` writes it (`contents: write`), and only ever pushes to `data`.
+  - Git history is the backup, so a bad run is undone by going back one commit, and `git log` shows what each hour added as readable diffs. Splitting by year keeps files small; old years rarely change.
+  - `main` stays clean, and forks don't get the data, since GitHub's fork dialog copies only the default branch unless told otherwise. As a backstop the files record whose data they are, and the collector starts fresh if that doesn't match `ACTIVITY_USER`.
+  - The commits may count as repo activity for the 60-day rule (unconfirmed); the API keep-alive stays either way.
+  - Catches: everything committed is public permanently, so the privacy test must pass on the files before every commit. When private repos arrive, their data can't be stored here as plain text: it would need encrypting with a key in Actions secrets, or a different store.
+- **Rejected: the SQLite file itself on a branch, or as a release asset.** Git can't store small changes to a binary SQLite file cheaply, so keeping hourly history would grow the repo by hundreds of MB a day. Overwriting instead leaves a single copy that a bad run can replace.
+- **Rejected: the GitHub Actions cache** (2026-11-25). It suits speed, not being the only copy: restores sometimes fail during GitHub incidents, and a failed restore looks like an empty cache. Details in [research-actions-cache.md](research-actions-cache.md).
+- **Fallback: a private Cloudflare R2 bucket or S3**, the original plan, if the data ever can't live in a public repo. A SQLite file rather than a hosted database: a run downloads one file of a few MB, queries locally, uploads it. Cloudflare D1 means an API round trip per query from Actions; Turso or Postgres add an account for no gain.
+- **Possible extra: publish `state.db` next to the page on GitHub Pages,** so visitors can explore the raw data (e.g. in Datasette Lite). The data is public anyway.
+
+Safety rules for whichever store, from the 2026-11-24 review: a failed load must not count as a first run, or an empty database gets saved over the real one. Fail on any error other than "not found", and refuse to save fewer rows than were loaded.
 
 ### Data sources
 
@@ -234,7 +241,7 @@ Each step ends with tests passing and the README updated.
 
 ## Open questions
 
-None right now. The [Actions cache research](research-actions-cache.md) feeds the state store decision later.
+None right now.
 
 ## Future: private repos
 
