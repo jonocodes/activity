@@ -32,3 +32,7 @@ GitHub spreads this across the profile graph, the repositories tab, search and p
   - API limits, with live measurements;
   - existing tools (github-readme-stats, lowlighter/metrics, archive-style projects) and why they fall short.
 - The prototype of the three views is on the [`prototype/views`](https://github.com/jonocodes/activity/tree/prototype/views) branch.
+
+## License
+
+GPL-3.0. See [LICENSE](LICENSE).
