@@ -1,0 +1,31 @@
+# Copy to config.toml in your fork. Public: no secrets here.
+# Visibility rules (which repos/orgs to hide) go in the ACTIVITY_RULES secret instead; see rules.example.toml.
+
+title = "What I've been doing on GitHub"
+# user = "octocat"              # defaults to the repo owner
+
+# pinned = ["octocat/hello-world", "someorg/upstream-project"]   # defaults to your GitHub pins
+
+[sections]                      # turn parts of the page on or off
+stats = true
+heatmap = true
+pinned = true
+feed = true
+projects = true
+orgs = true
+languages = true
+habits = false                  # busiest hours and weekdays
+
+[feed]
+comments = false                # issue comments are collected but hidden by default
+
+[state]
+# Optional. Without a state store every run fetches everything (slower, forgets nothing it can re-fetch).
+# store = "r2"
+# bucket = "activity-state"
+
+[sources.github]
+enabled = true
+
+# [sources.hackernews]          # planned
+# [sources.codeberg]            # planned

@@ -1,0 +1,28 @@
+# Example only. Put your real rules in the ACTIVITY_RULES Actions secret, never in the repo:
+# a committed file would publish the list of things you're hiding.
+#
+# Levels: full | org | anonymous | hidden | ignore
+#   full       repo name, titles, links
+#   org        org name with counts and line totals; no repo names or titles
+#   anonymous  counted in totals only
+#   hidden     not shown (still stored)
+#   ignore     never collected
+# Match "owner/*" or "owner/repo"; the most specific rule wins.
+
+default_public = "full"
+default_private = "org"
+
+[[rule]]
+match = "octocat/secret-side-project"
+level = "hidden"
+
+[[rule]]
+match = "some-client-org/*"
+level = "anonymous"
+
+# Credit private work you can no longer access (GitHub reports it only as anonymous counts)
+# to an org for a date range. Shown on the page as your claim, not GitHub's.
+[[period]]
+org = "Former Employer"
+from = "2015-03"
+to = "2018-06"
