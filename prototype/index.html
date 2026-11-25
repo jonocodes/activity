@@ -1,0 +1,283 @@
+<!doctype html>
+<!--
+  PROTOTYPE, throwaway. Question: does the v1 page specified in issue #1 / docs/design.md look right on real data?
+  Three variants, switchable with ?variant=A|B|C, the bottom bar, or the ← → keys:
+    A  As specified: profile + stats strip + heatmap, then Feed / Projects tabs, older years collapsed.
+    B  Sidebar: profile, stats and the repo list in a sticky left column; one feed on the right, filtered by clicking repos.
+    C  Year by year: the whole page is a timeline of years, each with its heatmap, stats, repos and items.
+  Shared: the data rules (commit dedup, forks folded into upstream, groups, owner's time zone, streaks, licences).
+  ?tz=<IANA zone> overrides the owner's time zone (default: your browser's). Data: prototype/data.json (public only).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Activity prototype</title>
+<style>
+  :root { --bg:#fff; --fg:#1f2328; --muted:#656d76; --line:#d8dee4; --card:#f6f8fa; --accent:#0969da; --heat:#2da44e;
+    --k-commit:#0969da; --k-pr:#8250df; --k-issue:#1a7f37; --k-discussion:#bf8700; --k-discussion_reply:#9a6700; --k-review:#cf222e;
+    --k-new_repo:#bc4c00; --k-fork:#57606a; --k-issue_comment:#8c959f; --k-commit_comment:#8c959f; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8d96a0; --line:#30363d; --card:#161b22; --accent:#4493f8; --heat:#3fb950;
+    --k-commit:#4493f8; --k-pr:#a371f7; --k-issue:#3fb950; --k-discussion:#d29922; --k-discussion_reply:#bb8009; --k-review:#f85149; --k-new_repo:#db6d28; --k-fork:#8d96a0; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 96px; }
+  h1 { font-size: 1.7em; margin: 0 0 4px; } h2 { font-size: 1.15em; margin: 28px 0 8px; } h3 { font-size:.8em; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:18px 0 4px; border-bottom:1px solid var(--line); padding-bottom:2px; }
+  .muted { color: var(--muted); } .small { font-size: .85em; }
+  .profile { color: var(--muted); margin: 4px 0 12px; } .profile span + span::before { content: " · "; }
+  .strip { display:flex; flex-wrap:wrap; gap: 8px 22px; padding: 12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); margin: 10px 0 14px; }
+  .strip .n { font-size: 1.35em; font-weight: 650; display:block; line-height:1.1; } .strip .l { font-size:.78em; color:var(--muted); }
+  .strip .sep { width:1px; background:var(--line); }
+  svg.heat { width: 100%; height: auto; display:block; margin: 6px 0; }
+  .tabs { display:flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 18px 0 8px; }
+  .tabs button { background:none; border:none; padding: 8px 14px; font: inherit; color: var(--muted); cursor:pointer; border-bottom: 2px solid transparent; }
+  .tabs button.on { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin: 8px 0; }
+  .chip { border:1px solid var(--line); background:var(--bg); color:var(--fg); border-radius: 999px; padding: 1px 10px; font-size:.8em; cursor:pointer; }
+  .chip.off { opacity:.4; } .chip i { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+  .filter { background: var(--card); border:1px solid var(--line); padding: 4px 10px; border-radius: 6px; font-size:.85em; margin: 6px 0; }
+  .row { display:grid; grid-template-columns: 110px 1fr auto; gap: 10px; padding: 3px 0; align-items: baseline; }
+  .row .t { overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tag { font-size:.7em; font-weight:600; text-transform:uppercase; color:#fff; padding: 1px 6px; border-radius: 4px; white-space:nowrap; }
+  .repo { font-family: ui-monospace, monospace; font-size:.85em; color: var(--muted); }
+  details.group > summary { list-style:none; cursor:pointer; } details.group > summary::-webkit-details-marker { display:none; }
+  details.group > summary .t::after { content: " ▸"; color: var(--muted); } details.group[open] > summary .t::after { content: " ▾"; }
+  details.group .inner { margin-left: 120px; border-left: 2px solid var(--line); padding-left: 10px; font-size:.9em; }
+  details.year { border-top: 1px solid var(--line); padding: 6px 0; } details.year > summary { cursor:pointer; font-weight:600; font-size:1.05em; }
+  .proj { display:grid; grid-template-columns: 1fr 130px; gap: 2px 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .proj .name { font-weight: 600; cursor:pointer; color: var(--accent); }
+  .proj .counts { font-size:.82em; color:var(--muted); } .proj .counts b { color: var(--fg); }
+  .proj .spark { grid-row: 1 / span 3; grid-column: 2; align-self:center; }
+  .badge { font-size:.72em; border:1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--muted); margin-left: 6px; }
+  .note { font-size:.8em; color:var(--muted); margin: 6px 0; }
+  footer { margin-top: 40px; font-size:.8em; color:var(--muted); }
+  /* B */
+  .side { display:grid; grid-template-columns: 300px 1fr; gap: 28px; max-width: 1200px; margin: 0 auto; padding: 24px 16px 96px; }
+  .side aside { position: sticky; top: 12px; align-self: start; max-height: calc(100vh - 24px); overflow:auto; padding-right: 8px; }
+  .side aside .strip { display:grid; grid-template-columns: 1fr 1fr; }
+  .side aside .rl { font-size:.85em; padding: 3px 6px; border-radius: 5px; cursor:pointer; display:flex; justify-content:space-between; gap:8px; }
+  .side aside .rl:hover, .side aside .rl.on { background: var(--card); }
+  /* C */
+  .yr { border-top: 2px solid var(--line); margin-top: 26px; padding-top: 8px; }
+  .yr .head { display:flex; align-items: baseline; gap: 14px; flex-wrap:wrap; } .yr .head .big { font-size: 2em; font-weight: 700; }
+  .yr .cols { display:grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 760px) { .side { grid-template-columns: 1fr; } .side aside { position: static; max-height:none; } .yr .cols { grid-template-columns: 1fr; } .row { grid-template-columns: 90px 1fr auto; } details.group .inner { margin-left: 0; } }
+  /* prototype switcher: not part of the design */
+  #pbar { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background:#111; color:#fff; border-radius: 999px; padding: 6px 8px; display:flex; gap:10px; align-items:center; box-shadow: 0 4px 18px rgba(0,0,0,.35); font: 13px system-ui; z-index: 9; }
+  #pbar button { background:#333; color:#fff; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; font-size: 14px; }
+  #pbar span { min-width: 220px; text-align:center; }
+</style>
+</head>
+<body>
+<div id="app"><p class="wrap muted">Loading prototype/data.json… (run <code>just prototype</code>)</p></div>
+<div id="pbar"><button id="prev">←</button><span id="plabel"></span><button id="next">→</button></div>
+<script>
+(async () => {
+const P = new URLSearchParams(location.search);
+const TZ = P.get('tz') || Intl.DateTimeFormat().resolvedOptions().timeZone;
+const D = await (await fetch('data.json')).json();
+const ME = D.profile.login, NOW = Date.now();
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const LABEL = { commit:'commit', pr:'pull request', issue:'issue', discussion:'discussion', discussion_reply:'reply', review:'review', new_repo:'new repo', fork:'fork', issue_comment:'comment', commit_comment:'commit comment' };
+const VERB = { commit:'commits', pr:'opened {n} pull requests', issue:'opened {n} issues', discussion:'started {n} discussions', discussion_reply:'{n} discussion replies', review:'reviewed {n} pull requests', new_repo:'created {n} repos', fork:'forked {n} repos', issue_comment:'{n} comments', commit_comment:'{n} commit comments' };
+const DEFAULT_ON = ['commit','pr','issue','discussion','discussion_reply','review','new_repo','fork'];
+
+// ---------- data rules (shared by all variants) ----------
+// owner's day / week / year, in the owner's time zone
+const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit' });
+const day = iso => dayFmt.format(new Date(iso));
+const weekOf = iso => { const d = new Date(day(iso) + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7); return d.toISOString().slice(0, 10); };
+const yearOf = iso => day(iso).slice(0, 4);
+const short = r => r.startsWith(ME + '/') ? r.slice(ME.length + 1) : r;
+
+// repos
+const own = Object.fromEntries(D.repos.map(r => [r.nameWithOwner, r]));
+const upstreamOf = r => own[r]?.isFork && own[r].parent ? own[r].parent.nameWithOwner : null;
+// commits: one per sha; prefer a non-fork repo, else the owner's own fork, else the first hit
+const bySha = {};
+for (const c of D.commits) {
+  const cur = bySha[c.sha];
+  const rank = x => !x.fork ? 0 : x.repo.startsWith(ME + '/') ? 1 : 2;
+  if (!cur || rank(c) < rank(cur)) bySha[c.sha] = c;
+}
+const commits = Object.values(bySha).map(c => ({ kind:'commit', at:c.at, repo:c.repo, title:c.msg, url:c.url }));
+// timestamps arrive as UTC (Z) from GraphQL but with a local offset from commit search: normalise to UTC, as the design says
+const items = [...D.items, ...commits].map(i => ({ ...i, at: new Date(i.at).toISOString() })).sort((a, b) => b.at.localeCompare(a.at));
+// Projects: the repo a row belongs to (a fork folds into its upstream)
+const rowOf = r => upstreamOf(r) || r;
+
+// groups: same kind + repo + owner's day; commits from 2, others from 3
+function grouped(list) {
+  const buckets = new Map();
+  for (const it of list) { const k = `${it.kind}|${it.repo}|${day(it.at)}`; (buckets.get(k) ?? buckets.set(k, []).get(k)).push(it); }
+  const out = [];
+  for (const g of buckets.values()) {
+    const min = g[0].kind === 'commit' ? 2 : 3;
+    if (g.length >= min) out.push({ group: true, kind: g[0].kind, repo: g[0].repo, at: g[0].at, items: g }); else out.push(...g);
+  }
+  return out.sort((a, b) => b.at.localeCompare(a.at));
+}
+// dates: a plain date in the owner's zone; the browser turns <1 week into a duration
+const dateLabel = iso => { const d = new Date(iso); const sameYear = yearOf(iso) === yearOf(new Date().toISOString());
+  return d.toLocaleDateString('en-US', { timeZone: TZ, month:'short', day:'numeric', ...(sameYear ? {} : { year:'numeric' }) }); };
+const age = iso => { const s = (NOW - new Date(iso)) / 1000; if (s > 7*86400) return null; if (s < 3600) return `${Math.max(1, Math.round(s/60))} min ago`; if (s < 86400) return `${Math.floor(s/3600)} h ago`; return `${Math.floor(s/86400)} d ago`; };
+const timeEl = iso => `<time datetime="${iso}" title="${esc(new Date(iso).toLocaleString('en-US', { timeZone: TZ }))} (${TZ})">${age(iso) ?? dateLabel(iso)}</time>`;
+
+// stats
+const count = k => items.filter(i => i.kind === k).length;
+const cal = D.lastYear.calendar;
+let best = 0, run = 0; cal.forEach(([, n]) => { run = n ? run + 1 : 0; best = Math.max(best, run); });
+let cur = 0; { let i = cal.length - 1; if (cal[i] && !cal[i][1]) i--; for (; i >= 0 && cal[i][1]; i--) cur++; }
+const STATS = {
+  allTime: [['commits', count('commit')], ['pull requests', count('pr')], ['issues', count('issue')], ['discussions', count('discussion')], ['repos created', count('new_repo')]],
+  year: [['contributions, last 12 months', D.lastYear.total], ['day streak now', cur], ['longest streak', best]],
+  private: D.lastYear.private,
+};
+const licences = {}; D.repos.filter(r => !r.isFork && r.licenseInfo && r.licenseInfo.spdxId !== 'NOASSERTION').forEach(r => licences[r.licenseInfo.spdxId] = (licences[r.licenseInfo.spdxId] || 0) + 1);
+const licenceLine = Object.entries(licences).sort((a, b) => b[1] - a[1]).map(([l, n]) => n > 1 ? `${l} ×${n}` : l).join(' · ');
+
+// projects rows
+function projectRows() {
+  const per = {};
+  const row = r => per[r] ??= { repo: r, commit: 0, pr: 0, issue: 0, discussion: 0, last: '', forks: new Set(), weeks: new Array(52).fill(0) };
+  for (const it of items) {
+    if (!['commit','pr','issue','discussion','discussion_reply'].includes(it.kind)) continue;
+    const r = row(rowOf(it.repo)); const k = it.kind === 'discussion_reply' ? 'discussion' : it.kind;
+    r[k]++; if (it.at > r.last) r.last = it.at;
+    if (upstreamOf(it.repo)) r.forks.add(it.repo);
+    if (it.kind === 'commit') { const w = 51 - Math.floor((NOW - new Date(it.at)) / (7 * 864e5)); if (w >= 0 && w < 52) r.weeks[w]++; }
+  }
+  const pinned = (P.get('pinned')?.split(',') || D.pins.map(p => p.nameWithOwner)).map(r => ({ ...row(r), meta: own[r] || D.pins.find(p => p.nameWithOwner === r) }));
+  const external = Object.values(per).filter(r => !r.repo.startsWith(ME + '/') && (r.commit + r.pr + r.issue + r.discussion) > 0).sort((a, b) => b.last.localeCompare(a.last));
+  const mine = D.repos.filter(r => !r.isFork || !r.parent).map(m => ({ ...row(m.nameWithOwner), meta: m, last: per[m.nameWithOwner]?.last || m.pushedAt })).sort((a, b) => b.last.localeCompare(a.last));
+  const idleForks = D.repos.filter(r => r.isFork && r.parent && !per[r.parent.nameWithOwner]?.forks.has(r.nameWithOwner)).length;
+  return { pinned, external, mine, idleForks };
+}
+
+// ---------- shared rendering helpers (pieces, not layouts) ----------
+const tag = k => `<span class="tag" style="background:var(--k-${k})">${LABEL[k]}</span>`;
+function heatmap(c) {
+  if (!c?.length) return '';
+  const max = Math.max(1, ...c.map(x => x[1])), cell = 11, gap = 2, first = new Date(c[0][0] + 'T00:00:00Z').getUTCDay();
+  let rects = '';
+  c.forEach(([d, n], i) => { const idx = i + first, x = Math.floor(idx / 7) * (cell + gap), y = (idx % 7) * (cell + gap);
+    const op = n === 0 ? .08 : [.3, .5, .75, 1][Math.min(3, Math.floor(4 * Math.sqrt(n / max) - .001))];
+    rects += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="2" fill="var(--heat)" fill-opacity="${op}"><title>${d}: ${n}</title></rect>`; });
+  return `<svg class="heat" viewBox="0 0 ${Math.ceil((c.length + first) / 7) * (cell + gap)} ${7 * (cell + gap)}">${rects}</svg>`;
+}
+function spark(weeks, w = 120, h = 26) {
+  const max = Math.max(1, ...weeks);
+  const pts = weeks.map((v, i) => `${(i / 51 * w).toFixed(1)},${(h - 2 - v / max * (h - 4)).toFixed(1)}`).join(' ');
+  return `<svg width="${w}" height="${h}"><polyline points="${pts}" fill="none" stroke="var(--k-commit)" stroke-width="1.5"/></svg>`;
+}
+const itemRow = it => `<div class="row"><span>${tag(it.kind)}</span><span class="t"><span class="repo">${esc(short(it.repo))}</span> · <a href="${it.url}">${esc(it.title)}</a></span><span class="muted small">${timeEl(it.at)}</span></div>`;
+const groupRow = g => {
+  const label = g.kind === 'commit' ? `${g.items.length} commits` : VERB[g.kind].replace('{n}', g.items.length);
+  return `<details class="group"><summary class="row"><span>${tag(g.kind)}</span><span class="t"><span class="repo">${esc(short(g.repo))}</span> · ${label}</span><span class="muted small">${timeEl(g.at)}</span></summary>
+    <div class="inner">${g.items.map(it => `<div class="t"><a href="${it.url}">${esc(it.title)}</a> <span class="muted small">${timeEl(it.at)}</span></div>`).join('')}</div></details>`;
+};
+const weeks = list => { const byW = new Map(); for (const g of grouped(list)) (byW.get(weekOf(g.at)) ?? byW.set(weekOf(g.at), []).get(weekOf(g.at))).push(g);
+  return [...byW].map(([w, gs]) => `<h3>Week of ${new Date(w + 'T12:00:00Z').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', timeZone:'UTC' })}</h3>${gs.map(g => g.group ? groupRow(g) : itemRow(g)).join('')}`).join(''); };
+const profileLine = () => [
+  D.profile.bio && `<span>${esc(D.profile.bio)}</span>`, `<span>on GitHub since ${D.profile.createdAt.slice(0, 4)}</span>`,
+  D.profile.location && `<span>${esc(D.profile.location)}</span>`, D.profile.company && `<span>${esc(D.profile.company)}</span>`,
+  D.profile.orgs.length && `<span>orgs: ${D.profile.orgs.map(o => `<a href="https://github.com/${o}">${o}</a>`).join(', ')}</span>`,
+  licenceLine && `<span>licences: ${licenceLine}</span>`, `<span><a href="https://github.com/${ME}?tab=achievements">achievements</a></span>`,
+].filter(Boolean).join('');
+const strip = () => `<div class="strip">${STATS.allTime.map(([l, n]) => `<div><span class="n">${n.toLocaleString()}</span><span class="l">${l}</span></div>`).join('')}<div class="sep"></div>
+  ${STATS.year.map(([l, n]) => `<div><span class="n">${n.toLocaleString()}</span><span class="l">${l}</span></div>`).join('')}
+  ${STATS.private ? `<div><span class="n">${STATS.private.toLocaleString()}</span><span class="l">private, last 12 months</span></div>` : ''}</div>`;
+const projRow = (r, onClick = '') => {
+  const m = r.meta || {};
+  const lic = m.licenseInfo && m.licenseInfo.spdxId !== 'NOASSERTION' ? `<span class="badge">${m.licenseInfo.spdxId}</span>` : '';
+  const flags = [m.isArchived && '<span class="badge">archived</span>', m.isFork && !m.parent && '<span class="badge">fork of a deleted repo</span>'].filter(Boolean).join('');
+  const forks = r.forks.size ? `<span class="muted small"> · incl. commits in <a href="https://github.com/${[...r.forks][0]}">your fork</a></span>` : '';
+  return `<div class="proj"><div><span class="name" data-repo="${r.repo}">${esc(short(r.repo))}</span>${lic}${flags}${m.stargazerCount ? `<span class="muted small"> ★ ${m.stargazerCount}</span>` : ''}${forks}</div>
+    ${m.description ? `<div class="small">${esc(m.description)}</div>` : ''}
+    <div class="counts"><b>${r.commit}</b> commits · <b>${r.pr}</b> PRs · <b>${r.issue}</b> issues · <b>${r.discussion}</b> discussions · last active ${r.last ? timeEl(r.last) : '—'}</div>
+    <div class="spark">${spark(r.weeks)}</div></div>`;
+};
+const chips = (on, list) => `<div class="chips">${Object.keys(LABEL).map(k => `<button class="chip ${on.has(k) ? '' : 'off'}" data-k="${k}"><i style="background:var(--k-${k})"></i>${LABEL[k]} ${list.filter(i => i.kind === k).length}</button>`).join('')}</div>`;
+const footer = () => `<footer>Built ${timeEl(D.generatedAt)} · ${new Date(D.generatedAt).toLocaleString('en-US', { timeZone: TZ })} (${TZ}). Public activity only. <span class="muted">Prototype: ?tz=Europe/London to try another time zone.</span></footer>`;
+const cutoff = new Date(NOW - 365 * 864e5).toISOString();
+
+// ---------- A: as specified ----------
+function VariantA() {
+  const app = document.getElementById('app'), state = { tab: 'feed', on: new Set(DEFAULT_ON), repo: null };
+  const pr = projectRows();
+  const draw = () => {
+    const shown = items.filter(i => state.on.has(i.kind) && (!state.repo || rowOf(i.repo) === state.repo));
+    const recent = shown.filter(i => i.at >= cutoff), older = shown.filter(i => i.at < cutoff);
+    const yrs = [...new Set(older.map(i => yearOf(i.at)))].sort().reverse();
+    app.innerHTML = `<div class="wrap"><h1>${esc(ME)} on GitHub</h1><div class="profile">${profileLine()}</div>${strip()}${heatmap(D.lastYear.calendar)}
+      <div class="tabs"><button data-tab="feed" class="${state.tab === 'feed' ? 'on' : ''}">Feed</button><button data-tab="projects" class="${state.tab === 'projects' ? 'on' : ''}">Projects</button></div>
+      ${state.tab === 'feed' ? `${chips(state.on, items)}${state.repo ? `<div class="filter">Showing only <b>${esc(short(state.repo))}</b> (including commits in your fork) · <a href="#" id="clear">show all</a></div>` : ''}
+        <h2>Last 12 months</h2>${weeks(recent) || '<p class="muted">Nothing.</p>'}
+        ${yrs.map(y => `<details class="year" data-y="${y}"><summary>${y} <span class="muted small">· ${older.filter(i => yearOf(i.at) === y).length} items${y === yearOf(cutoff) ? ', before the last 12 months' : ''}</span></summary><div class="body"></div></details>`).join('')}`
+      : `<h2>Pinned</h2>${pr.pinned.map(r => projRow(r)).join('')}
+        <h2>Contributing to</h2>${pr.external.slice(0, 12).map(r => projRow(r)).join('')}${pr.external.length > 12 ? `<details><summary class="muted">${pr.external.length - 12} more</summary>${pr.external.slice(12).map(r => projRow(r)).join('')}</details>` : ''}
+        <h2>My projects</h2>${pr.mine.slice(0, 15).map(r => projRow(r)).join('')}${pr.mine.length > 15 ? `<details><summary class="muted">${pr.mine.length - 15} more</summary>${pr.mine.slice(15).map(r => projRow(r)).join('')}</details>` : ''}
+        <p class="note">${pr.idleForks} forks without commits of yours aren't listed (the "forked" items stay in the feed).</p>`}
+      ${footer()}</div>`;
+    app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { state.tab = b.dataset.tab; draw(); });
+    app.querySelectorAll('.chip').forEach(b => b.onclick = () => { const k = b.dataset.k; state.on.has(k) ? state.on.delete(k) : state.on.add(k); draw(); });
+    app.querySelectorAll('.proj .name').forEach(b => b.onclick = () => { state.repo = b.dataset.repo; state.tab = 'feed'; draw(); scrollTo(0, 0); });
+    app.querySelector('#clear')?.addEventListener('click', e => { e.preventDefault(); state.repo = null; draw(); });
+    app.querySelectorAll('details.year').forEach(d => d.addEventListener('toggle', () => { const b = d.querySelector('.body'); if (d.open && !b.innerHTML) { const y = d.dataset.y; b.innerHTML = heatmap(D.years[y]?.calendar) + weeks(older.filter(i => yearOf(i.at) === y)); } }));
+  };
+  draw();
+}
+
+// ---------- B: sidebar ----------
+function VariantB() {
+  const app = document.getElementById('app'), state = { on: new Set(DEFAULT_ON), repo: null };
+  const pr = projectRows();
+  const all = [...pr.pinned.map(r => ({ ...r, pin: true })), ...pr.external, ...pr.mine.filter(r => r.commit + r.pr + r.issue + r.discussion)];
+  const seen = new Set(), list = all.filter(r => !seen.has(r.repo) && seen.add(r.repo));
+  const draw = () => {
+    const shown = items.filter(i => state.on.has(i.kind) && (!state.repo || rowOf(i.repo) === state.repo));
+    const sel = state.repo && list.find(r => r.repo === state.repo);
+    app.innerHTML = `<div class="side"><aside><h1>${esc(ME)}</h1><div class="profile">${profileLine()}</div>${strip()}${heatmap(D.lastYear.calendar)}
+        <h3>Repos</h3><div class="rl ${state.repo ? '' : 'on'}" data-repo="">All activity <span class="muted">${items.length}</span></div>
+        ${list.map(r => `<div class="rl ${state.repo === r.repo ? 'on' : ''}" data-repo="${r.repo}"><span>${r.pin ? '📌 ' : ''}${esc(short(r.repo))}</span><span class="muted">${r.commit + r.pr + r.issue + r.discussion}</span></div>`).join('')}
+        <p class="note">${pr.idleForks} idle forks not listed.</p></aside>
+      <main>${sel ? projRow(sel) : ''}${chips(state.on, items)}${weeks(shown.slice(0, 600))}${shown.length > 600 ? `<p class="muted">… ${shown.length - 600} older items (the real page would page or collapse these by year)</p>` : ''}${footer()}</main></div>`;
+    app.querySelectorAll('.rl').forEach(b => b.onclick = () => { state.repo = b.dataset.repo || null; draw(); });
+    app.querySelectorAll('.chip').forEach(b => b.onclick = () => { const k = b.dataset.k; state.on.has(k) ? state.on.delete(k) : state.on.add(k); draw(); });
+  };
+  draw();
+}
+
+// ---------- C: year by year ----------
+function VariantC() {
+  const app = document.getElementById('app');
+  const yrs = [...new Set(items.map(i => yearOf(i.at)))].sort().reverse();
+  const yearBlock = (y, open) => {
+    const its = items.filter(i => yearOf(i.at) === y && DEFAULT_ON.includes(i.kind));
+    const by = k => its.filter(i => i.kind === k).length;
+    const repoCounts = {}; its.forEach(i => { const r = rowOf(i.repo); repoCounts[r] = (repoCounts[r] || 0) + 1; });
+    const top = Object.entries(repoCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    return `<section class="yr"><div class="head"><span class="big">${y}</span>
+        <span class="muted">${(D.years[y]?.total ?? 0).toLocaleString()} contributions · ${by('commit')} commits · ${by('pr')} PRs · ${by('issue')} issues · ${by('discussion')} discussions · ${by('new_repo')} new repos</span></div>
+      ${heatmap(D.years[y]?.calendar)}
+      <div class="cols"><div><h3>Most active in</h3>${top.map(([r, n]) => `<div class="row" style="grid-template-columns:1fr auto"><span class="t"><a href="https://github.com/${r}">${esc(short(r))}</a>${upstreamOf(r) ? '' : ''}</span><span class="muted small">${n}</span></div>`).join('')}</div>
+        <div><h3>Highlights</h3>${its.filter(i => ['pr','discussion','new_repo'].includes(i.kind)).slice(0, 8).map(itemRow).join('')}</div></div>
+      <details ${open ? 'open' : ''}><summary class="muted">All ${its.length} items in ${y}</summary>${open ? weeks(its) : ''}</details></section>`;
+  };
+  app.innerHTML = `<div class="wrap"><h1>${esc(ME)} on GitHub</h1><div class="profile">${profileLine()}</div>${strip()}
+    ${yrs.map((y, i) => yearBlock(y, i === 0)).join('')}${footer()}</div>`;
+  app.querySelectorAll('section.yr details').forEach((d, i) => d.addEventListener('toggle', () => { if (d.open && !d.querySelector('h3, .row')) d.insertAdjacentHTML('beforeend', weeks(items.filter(x => yearOf(x.at) === yrs[i] && DEFAULT_ON.includes(x.kind)))); }));
+}
+
+// ---------- switcher ----------
+const V = { A: ['As specified', VariantA], B: ['Sidebar', VariantB], C: ['Year by year', VariantC] }, keys = Object.keys(V);
+const show = k => { V[k][1](); document.getElementById('plabel').textContent = `${k} (${V[k][0]}) · tz ${TZ}`; };
+const go = d => { const i = keys.indexOf(P.get('variant') || 'A'); const k = keys[(i + d + keys.length) % keys.length]; P.set('variant', k); history.replaceState(null, '', '?' + P); show(k); scrollTo(0, 0); };
+document.getElementById('prev').onclick = () => go(-1); document.getElementById('next').onclick = () => go(1);
+addEventListener('keydown', e => { if (e.target.closest('input,textarea,[contenteditable]')) return; if (e.key === 'ArrowLeft') go(-1); if (e.key === 'ArrowRight') go(1); });
+show(keys.includes(P.get('variant')) ? P.get('variant') : 'A');
+})();
+</script>
+</body>
+</html>
