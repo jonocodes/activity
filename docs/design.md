@@ -28,6 +28,16 @@ Designed 2026-11-23 to 2026-11-24, before any code, and revised on 2026-11-24 af
 | Pinned projects at the top of the Projects view | Defaults to GitHub's own pins (GraphQL `pinnedItems`, live each run). `ACTIVITY_PINNED` overrides them and can include upstream projects or Codeberg repos |
 | List public org memberships only (2026-11-24) | Memberships are private by default on GitHub; publishing them is a private-data choice, deferred with private repos. REST `/users/<user>/orgs` lists only public memberships whatever the token, and needs no scope |
 | Archive the 30-day events feed once the state store exists | The only record of pushes to non-main branches and branch create/delete. History from before the first run can't be recovered |
+| **Neutral theme only; no theme setting** (2026-11-25) | The page doesn't need to match the author's blog. It follows the system light/dark setting |
+| **A failed run doesn't deploy** (2026-11-25) | With no state store, a half-failed fetch would publish a thinner page. Pages keeps serving the last good page instead. See [When a run fails](#when-a-run-fails) |
+| **No Events API in v1** (2026-11-25) | Without a state store, pushes to non-main branches would show for 30 days and then vanish. Events come back with the state store, and v1 loses a whole collector |
+| **Tests use recorded fixtures plus small hand-written ones** (2026-11-25) | Recordings of the author's real (public) API responses keep the fixtures true to the API; hand-written fixtures cover edge cases a real account may not have. The no-hard-coded-user rule applies to code and tests, which read the login from settings or the fixture, not to recorded data |
+| **Forks fold into their upstream; no Forks group** (2026-11-25) | A fork is usually just how the owner made pull requests upstream, so a separate group repeated "Contributing to". Commits in a fork count on the upstream's row, with a link to the fork. Forks without items aren't listed (the "forked X" item stays in the feed). A fork whose upstream was deleted shows under "My projects", marked as such |
+| **No languages section in v1; commits lead the stats** (2026-11-25) | Commits matter more to the owner than languages. Languages may return later as an optional section weighted by commits |
+| **Show licences: a summary line and a badge per own repo** (2026-11-25) | Cheap (one field per repo) and says something about the owner's work. Only licences in use are listed; unlicensed repos get no badge and no count (27 of the author's 55 have none) |
+| **A short profile summary** (2026-11-25) | Bio, "on GitHub since", location, company if set, public orgs, licences, achievements link. No avatar, name, followers or website for now |
+| **A heatmap per year** (2026-11-25) | The calendar is fetched a year at a time anyway. The top heatmap shows the last 12 months; each collapsed older year opens with its own |
+| **Sparklines on repo rows** (2026-11-25) | Weekly commits over the last 12 months, from commits already collected. A flat line also shows a dormant repo |
 | Achievements: a link only | No API exists. Link to `github.com/<user>?tab=achievements` |
 | **Dates: stored in UTC, grouped in the owner's time zone, ages shown by the browser** (2026-11-24) | A page rendered hourly in UTC can't say "today": it goes stale when a run fails and is wrong for most visitors. The prototype already put "yesterday" items under the previous week. See [Dates and time zones](#dates-and-time-zones) |
 | **TypeScript on Node 24** (2026-11-24) | Node 24 runs `.ts` files directly (type stripping) and has `node:sqlite` and `node:test` built in: no build step, no native modules, few dependencies. It's on the Actions runners already, and the code could move to a Cloudflare Worker later. Bun would also work; Node needs nothing extra |
@@ -94,14 +104,14 @@ Live numbers and the limits behind each are in [research.md](research.md). In v1
 
 | Data | Source | Notes |
 |---|---|---|
-| Profile: created, location, company, website, followers, gists, stars given, pins | GraphQL `user(login:)` | Author's account created 2012-01-06 |
+| Profile: created, bio, location, company, pins | GraphQL `user(login:)` | Author's account created 2012-01-06 |
 | Public org memberships | REST `/users/<user>/orgs` | Lists public memberships only, whatever the token. The author has 8 orgs, all private on the public profile, so none show until they make some public |
-| Repos owned, forks and their upstream, stars and forks received | GraphQL `repositories` | `isFork`, `parent`, `isPrivate` (drop if true), language, topics |
+| Repos owned, forks and their upstream, licences | GraphQL `repositories` | `isFork`, `parent`, `isPrivate` (drop if true), `isArchived`, `licenseInfo` |
 | Issues, PRs, issue comments, commit comments, discussions, discussion replies | GraphQL `issues`, `pullRequests`, `issueComments`, `commitComments`, `repositoryDiscussions`, `repositoryDiscussionComments` | Full history, no time window. Newest first; with state, stop at the last item stored |
 | Commits (sha, message, date) | REST commit search `author:<user>`, sliced by date | Main branches only; at most 1000 results per query, so slice by year or month. The same commit can appear in a repo and its forks; it's counted once (see Decisions) |
 | Commit line counts | GraphQL `history(author: {id})` on each public repo's default branch: `additions`, `deletions` | 1 point per 100 commits (measured on a 401-commit repo) |
 | Daily counts, reviews, anonymous private total | GraphQL `contributionsCollection`, at most one year per query | All years once (2009–2026 for the author: 18 calls), then the current year. `restrictedContributionsCount` is a bare number with no repo; check in build step 2 that it comes through a public-only token |
-| Pushes to non-main branches, branch create/delete | REST `/users/<user>/events`, with ETags (a 304 is free) | GitHub keeps 30 days and 300 events; 300 covered about 10 days for the author, so hourly is plenty. Drop events with `public: false` |
+| Later, with the state store: pushes to non-main branches, branch create/delete | REST `/users/<user>/events`, with ETags (a 304 is free) | Not in v1. GitHub keeps 30 days and 300 events; 300 covered about 10 days for the author, so hourly is plenty. Drop events with `public: false` |
 | Later: commits on every branch of your own repos | REST commits per branch, only for repos whose `pushed_at` changed | Idea from kibotu/git-history-timeline (see research) |
 
 ### SQLite schema (sketch)
@@ -124,20 +134,27 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
 ### Generated site
 
 - **`index.html`** holds:
-  - the profile and stats strip;
-  - the heatmap;
-  - pinned projects;
-  - Feed and Projects tabs;
-  - older years in collapsed sections;
+  - the profile summary: bio, "on GitHub since <year>", location, company if set, public orgs, a licences line ("GPL-3.0 ×17 · MIT ×4 · …", only licences in use), and a link to achievements;
+  - the stats strip, led by commits:
+    - all-time: commits, pull requests, issues, discussions, repos created;
+    - last 12 months: contributions, current streak, longest streak (from GitHub's calendar; a day with nothing yet doesn't break the current streak until it's over);
+    - the anonymous private contributions count, if GitHub returns it;
+  - the heatmap of the last 12 months;
+  - Feed and Projects tabs. Projects has these groups:
+    - Pinned;
+    - Contributing to: external repos, each row counting the owner's commits, pull requests, issues and discussions there, including commits in the owner's fork of it (linked);
+    - My projects: own repos that aren't forks, with a licence badge; archived ones marked; plus forks whose upstream was deleted, marked as such;
+  - older years in collapsed sections, each opening with that year's heatmap;
+  - on each Projects row, a sparkline of the owner's weekly commits over the last 12 months;
   - a footer saying when the page was last updated.
 
   It's pre-rendered, with a little JavaScript for the filter chips, the tabs and item ages.
-- **Theme:** follows the system light/dark setting. The author wants it to look like their blog (`jonocodes/blog`, Eleventy, `public/css/index.css`); a fork gets a neutral default.
+- **Theme:** a neutral default that follows the system light/dark setting. No theme setting.
 - **URL:** `<user>.github.io/activity/` or a custom domain. For the author, `activity.dgt.is`: the blog is a separate Pages project on `www.dgt.is`, so the page can't sit at `www.dgt.is/activity/`. The blog menu links to it.
-- **Feed rules carried over from the prototype:**
-  - same-day commits to one repo collapse into "N commits";
-  - bursts of issues should collapse the same way ("opened 12 issues in X");
-  - issue comments are hidden by default.
+- **Feed:**
+  - item kinds: commits, pull requests, issues, discussions, discussion replies, reviews, new repos and forks. Issue and commit comments are collected but hidden unless `ACTIVITY_FEED_COMMENTS` is on;
+  - groups: items of the same kind, in the same repo, on the same day (the owner's day) become one row, such as "7 commits" or "opened 12 issues", which expands to list them. Commits group from 2, other kinds from 3. The row sits at the time of its newest item;
+  - filter chips per kind, as in the prototype.
 
 ### Dates and time zones
 
@@ -174,6 +191,16 @@ jobs:
       # then actions/upload-pages-artifact + actions/deploy-pages with dist/
 ```
 
+### When a run fails
+
+- **It doesn't deploy,** so Pages keeps serving the last good page. A run fails on:
+  - an API error that persists after retries;
+  - a GraphQL response carrying errors;
+  - a commit search reporting incomplete results.
+- **Rate limits:** a short wait (the `Retry-After` or reset time) is waited out; a long one fails the run.
+- **Shrink guard:** each deploy also publishes `summary.json`, the counts per item kind. The next run fetches it from the live site and refuses to deploy if the total number of items fell by more than 10%. A `force` input on a manual (`workflow_dispatch`) run overrides it.
+- **Hearing about it:** GitHub emails a failed scheduled run, by default to whoever last edited the schedule.
+
 Gotchas:
 - **Logs are public.** The job prints counts, not item titles.
 - **Disabled schedules:** GitHub turns off scheduled workflows in a public repo after 60 days without repo activity. The keep-alive step above handles it without commits.
@@ -190,7 +217,7 @@ All optional, set as Actions variables (Settings → Secrets and variables → A
 | `ACTIVITY_TITLE` | `<user> on GitHub` | Page title |
 | `ACTIVITY_TIMEZONE` | `UTC` | IANA time zone that decides which day an item falls on |
 | `ACTIVITY_PINNED` | your GitHub pins | Comma-separated `owner/repo` list shown at the top of Projects |
-| `ACTIVITY_SECTIONS` | all except `habits` | Comma-separated: `stats`, `heatmap`, `pinned`, `feed`, `projects`, `orgs`, `languages`, `habits` |
+| `ACTIVITY_SECTIONS` | all except `habits` | Comma-separated: `profile`, `stats`, `heatmap`, `feed`, `projects`, `habits` (busiest hours and weekdays) |
 | `ACTIVITY_FEED_COMMENTS` | `false` | Show issue comments in the feed |
 
 ## Token
@@ -201,7 +228,9 @@ Build step 2 checks that every query works with this token. GraphQL has had gaps
 
 ## Testing
 
-- **Recorded fixtures** of GraphQL and REST responses, so collect and render run without the network.
+- **Fixtures, so collect and render run without the network:**
+  - recordings of real GraphQL and REST responses from the author's public data, refreshed by hand with `just record-fixtures`;
+  - small hand-written fixtures for edge cases: private items carrying canaries, one commit in a repo and its fork, items either side of midnight in the owner's time zone, a commit search slice that hits the 1000-result cap.
 - **Render as a pure function of (database, settings),** checked against snapshot HTML.
 - **Privacy test:** the fixtures include private items as a too-powerful token would return them, each carrying a canary string such as `CANARY-PRIVATE`. The test fails if a canary reaches `state.db`, `dist/` or the job's log output.
 - **A live smoke test,** run by hand or with `workflow_dispatch`.
@@ -224,13 +253,13 @@ Each step ends with tests passing and the README updated.
 1. **Skeleton:**
    - flox environment and `.envrc` (activates flox, loads `.env`);
    - TypeScript on Node 24, run directly with no build step;
-   - Justfile (`just test`, `just collect`, `just render`, `just dev`);
+   - Justfile (`just test`, `just collect`, `just render`, `just dev`, `just record-fixtures`);
    - `node:test`;
    - the SQLite adapter on `node:sqlite`.
 2. **GitHub collector into SQLite,** driven by recorded fixtures: profile, public orgs, repos, the GraphQL connections, `contributionsCollection` by year, commit search slices, line counts. Drops private items. Confirms the public-only token works for every query.
 3. **Settings from env vars,** validated; a render model; the privacy test.
 4. **Renderer:** the combined page, built from the prototype views, as snapshot-tested HTML, with dates as in [Dates and time zones](#dates-and-time-zones).
-5. **Workflow:** scheduled Action deploying to Pages, with the keep-alive.
+5. **Workflow:** scheduled Action deploying to Pages, with the keep-alive, the failure rules and the shrink guard.
 6. **Later:**
    - [state store](#later-the-state-store): incremental fetching, the events archive, `gone_at`;
    - [private repos](#future-private-repos);

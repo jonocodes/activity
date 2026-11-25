@@ -7,7 +7,7 @@ Read [docs/design.md](docs/design.md) before any change. It is the source of tru
 ## Guardrails
 
 - **Privacy is the hard requirement.** The repo, its Actions logs and the deployed page are all public. v1 handles public data only: the token is public read-only, and the collector drops anything marked private even if the token could see it. Private repos are a deferred feature (design.md, "Future: private repos"); don't add private handling without a design decision. Every change touching collection, rendering or logging keeps the privacy test green.
-- **No hard-coded user.** The user comes from `ACTIVITY_USER`, defaulting to the repo owner. Settings are env vars (Actions variables), never a committed config file. `jonocodes` appears only in docs, as the first user.
+- **No hard-coded user.** The owner comes from `ACTIVITY_USER`, defaulting to the repo owner. Code and tests read the login from settings or the fixture; recorded fixtures may contain the author's public data. Settings are env vars (Actions variables), never a committed config file. Outside recorded fixtures, `jonocodes` appears only in docs, as the first user. Use the terms in `GLOSSARY.md`.
 - **Tests first, offline.** Collect and render run against recorded API fixtures. A live API call belongs in the manual smoke test only.
 - **Keep the README current** whenever setup, config or behaviour changes; the owner treats it as the source of truth. Common commands go in the Justfile.
 - **Design changes update `docs/design.md` in the same change:** a row in Decisions, with the reason.
