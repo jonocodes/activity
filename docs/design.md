@@ -29,16 +29,17 @@ Designed 2026-11-23 to 2026-11-24, before any code, and revised on 2026-11-24 af
 | **Three tabs: Feed, Projects, Contributing to** (2026-11-25) | The owner's own work and their work in other people's repos are different stories, so "Contributing to" gets its own tab instead of being a group inside Projects. Named "Contributing to", not "Contributions", because a contribution is GitHub's daily counted unit (see `GLOSSARY.md`), which includes own repos |
 | List public org memberships only (2026-11-24) | Memberships are private by default on GitHub; publishing them is a private-data choice, deferred with private repos. REST `/users/<user>/orgs` lists only public memberships whatever the token, and needs no scope |
 | Archive the 30-day events feed once the state store exists | The only record of pushes to non-main branches and branch create/delete. History from before the first run can't be recovered |
-| **Neutral theme only; no theme setting** (2026-11-25) | The page doesn't need to match the author's blog. It follows the system light/dark setting |
+| **Neutral theme only; no theme setting or toggle** (2026-11-25) | The page doesn't need to match the author's blog. It follows the system light/dark setting, with dark colours chosen for the dark background rather than inverted |
 | **A failed run doesn't deploy** (2026-11-25) | With no state store, a half-failed fetch would publish a thinner page. Pages keeps serving the last good page instead. See [When a run fails](#when-a-run-fails) |
 | **No Events API in v1** (2026-11-25) | Without a state store, pushes to non-main branches would show for 30 days and then vanish. Events come back with the state store, and v1 loses a whole collector |
 | **Tests use recorded fixtures plus small hand-written ones** (2026-11-25) | Recordings of the author's real (public) API responses keep the fixtures true to the API; hand-written fixtures cover edge cases a real account may not have. The no-hard-coded-user rule applies to code and tests, which read the login from settings or the fixture, not to recorded data |
 | **Forks fold into their upstream; no Forks group** (2026-11-25) | A fork is usually just how the owner made pull requests upstream, so a separate group repeated "Contributing to". Commits in a fork count on the upstream's row, with a link to the fork. Forks without items aren't listed (the "forked X" item stays in the feed). A fork whose upstream was deleted shows under "My projects", marked as such |
-| **No languages section in v1; commits lead the stats** (2026-11-25) | Commits matter more to the owner than languages. Languages may return later as an optional section weighted by commits |
-| **Show licences: a summary line and a badge per own repo** (2026-11-25) | Cheap (one field per repo) and says something about the owner's work. Only licences in use are listed; unlicensed repos get no badge and no count (27 of the author's 55 have none) |
-| **A short profile summary** (2026-11-25) | Bio, "on GitHub since", location, company if set, public orgs, licences, achievements link. No avatar, name, followers or website for now |
+| **An overview of licences and languages as ranked bars** (2026-11-25, revised after the prototype) | Seen on real data, one-colour horizontal bars (largest first, figure at the end) read at a glance; a pie can't compare small slices. Licences count own repos that aren't forks; languages are weighted by the owner's commits (each repo's main language), top 6 plus Other. One colour, not GitHub's language colours. Commits still lead the stats strip |
+| **Licences: the overview bars plus a badge per own repo** (2026-11-25) | Cheap (one field per repo) and says something about the owner's work. Only licences in use are counted; unlicensed repos get no badge and no count (27 of the author's 55 have none) |
+| **A short profile summary** (2026-11-25) | Bio, "on GitHub since", location, company if set, public orgs, achievements link. No avatar, name, followers or website for now |
 | **A heatmap per year** (2026-11-25) | The calendar is fetched a year at a time anyway. The top heatmap shows the last 12 months; each collapsed older year opens with its own |
-| **Sparklines on repo rows** (2026-11-25) | Weekly commits over the last 12 months, from commits already collected. A flat line also shows a dormant repo |
+| **Depth on Projects, breadth on Contributing to** (2026-11-25, from the prototype) | Sparklines undersold sparse work: one PR drew a flat line with a blip. Projects rows show commits per month over the last 24 months as columns (a quiet month draws only the baseline). Contributing to leads with the breadth: repos, owners and orgs, first year, and a chart of external repos worked in per year; each row has a dot per item on a shared timeline |
+| **Details for external repos** (2026-11-25) | Description, stars, licence and main language for every external repo on the page, batched about 25 to a GraphQL query (about 6 calls for the author's 138). The languages bars need them too |
 | Achievements: a link only | No API exists. Link to `github.com/<user>?tab=achievements` |
 | **Dates: stored in UTC, grouped in the owner's time zone, ages shown by the browser** (2026-11-24) | A page rendered hourly in UTC can't say "today": it goes stale when a run fails and is wrong for most visitors. The prototype already put "yesterday" items under the previous week. See [Dates and time zones](#dates-and-time-zones) |
 | **TypeScript on Node 24** (2026-11-24) | Node 24 runs `.ts` files directly (type stripping) and has `node:sqlite` and `node:test` built in: no build step, no native modules, few dependencies. It's on the Actions runners already, and the code could move to a Cloudflare Worker later. Bun would also work; Node needs nothing extra |
@@ -135,7 +136,8 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
 ### Generated site
 
 - **`index.html`** holds:
-  - the profile summary: bio, "on GitHub since <year>", location, company if set, public orgs, a licences line ("GPL-3.0 ×17 · MIT ×4 · …", only licences in use), and a link to achievements;
+  - the profile summary: bio, "on GitHub since <year>", location, company if set, public orgs, and a link to achievements;
+  - the overview: two ranked-bar lists side by side, licences of own repos and languages by the owner's commits;
   - the stats strip, led by commits:
     - all-time: commits, pull requests, issues, discussions, repos created;
     - last 12 months: contributions, current streak, longest streak (from GitHub's calendar; a day with nothing yet doesn't break the current streak until it's over);
@@ -144,9 +146,9 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
   - three tabs:
     - Feed;
     - Projects: Favorites (if set, in the owner's order), then My projects: own repos that aren't forks, with a licence badge, archived ones marked, plus forks whose upstream was deleted, marked as such;
-    - Contributing to: external repos, most recent first, each row counting the owner's commits, pull requests, issues and discussions there, including commits in the owner's fork of it (linked);
+    - Contributing to: headline numbers (external repos, owners and orgs, first year), a column chart of external repos worked in per year, then external repos most recent first, each row with description, stars, licence, the owner's commits, pull requests, issues and discussions there (including commits in the owner's fork of it, linked), and a dot per item on a timeline shared by all rows;
   - older years in collapsed sections, each opening with that year's heatmap;
-  - on each repo row (Projects and Contributing to), a sparkline of the owner's weekly commits over the last 12 months;
+  - on each Projects row, the owner's commits per month over the last 24 months as columns;
   - a footer saying when the page was last updated.
 
   It's pre-rendered, with a little JavaScript for the filter chips, the tabs and item ages.
@@ -271,7 +273,8 @@ Each step ends with tests passing and the README updated.
 
 ## Open questions
 
-None right now.
+- **Work for a past employer looks like contributing to someone else's project** (2026-11-25). The author's years at PLOS show up under Contributing to as 7 repos of a stranger, though it was their job. Possible answer: an owner-marked "work" org, shown as its own group ("Worked at PLOS, 2015–2018"). This overlaps with the `[[period]]` idea in [Future: private repos](#future-private-repos). Not for v1.
+- **Allow and deny lists for orgs and repos** (2026-11-25). The owner wants to include or exclude orgs and repos by name, for public repos now and private ones later. To design together with the private-repo rules. Not for v1.
 
 ## Future: private repos
 
