@@ -75,6 +75,17 @@ The Issues dashboard at `github.com/issues` has the views "Created by me", "Assi
 | GraphQL `search(type: DISCUSSION)` | `author:` / `commenter:` / `involves:` / `answered-by:` | 19 / 17 / 27 / 1 |
 | REST `/users/jonocodes/events` | paginate to the end | 300 events, oldest 2026-11-13, 13 repos, 118 private |
 
+### First full collector run (2026-11-25)
+
+The v1 collector against the live API for `jonocodes`, with a token that could also see private repos (so the drop-private path ran for real):
+
+- **238 API calls, 326 s.** Most of the time is commit search, at 30 requests a minute.
+- **Collected:** 86 own public repos, 0 public orgs, 18 contribution years (2009–2026), 1,690 items (issue 410, PR 498, issue comment 612, discussion 20, discussion reply 31, commit comment 17, review 16, new repo 55, fork 31), and 2,199 distinct commits: 1,868 from walking own repos' default branches, plus 2,869 commit search hits before deduplication.
+- **External repos with details:** 167.
+- **Dropped as private:** 1,461 repos, items and commits, logged as a count only. No private repo name reached the database.
+- **Commits in own forks:** walking a fork's default branch found 24 commits in the author's adopted fork `tunnel-toggle`; commit search had found none.
+- Still to check: the same run with a public-only fine-grained token, and whether `restrictedContributionsCount` comes through with it.
+
 ### Events API (`/users/{username}/events`)
 
 - **Window:** up to 300 events, and "only events created within the past 30 days" ([events docs](https://docs.github.com/en/rest/activity/events)). Older sources still say 90 days ([ghexport README](https://github.com/karlicoss/ghexport)); the current docs say 30.
