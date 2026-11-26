@@ -157,6 +157,7 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
 
   It's pre-rendered, with a little JavaScript for the filter chips, the tabs and item ages.
 - **Theme:** a neutral default that follows the system light/dark setting. No theme setting.
+- **Narrow screens:** side-by-side blocks (the two overview bar lists) stack into one column on a phone. The prototype showed the bars shrinking to nothing at phone width.
 - **URL:** `<user>.github.io/activity/` or a custom domain. For the author, `activity.dgt.is`: the blog is a separate Pages project on `www.dgt.is`, so the page can't sit at `www.dgt.is/activity/`. The blog menu links to it.
 - **Feed:**
   - item kinds: commits, pull requests, issues, discussions, discussion replies, reviews, new repos and forks. Issue and commit comments are collected but hidden unless `ACTIVITY_FEED_COMMENTS` is on;
