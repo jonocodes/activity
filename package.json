@@ -1,0 +1,14 @@
+{
+  "name": "activity",
+  "private": true,
+  "type": "module",
+  "description": "One static page of a person's public GitHub activity, rebuilt hourly in GitHub Actions.",
+  "license": "GPL-3.0-only",
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.4",
+    "typescript": "^7.0.2"
+  }
+}

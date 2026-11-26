@@ -118,20 +118,22 @@ Live numbers and the limits behind each are in [research.md](research.md). In v1
 | Later, with the state store: pushes to non-main branches, branch create/delete | REST `/users/<user>/events`, with ETags (a 304 is free) | Not in v1. GitHub keeps 30 days and 300 events; 300 covered about 10 days for the author, so hourly is plenty. Drop events with `public: false` |
 | Later: commits on every branch of your own repos | REST commits per branch, only for repos whose `pushed_at` changed | Idea from kibotu/git-history-timeline (see research) |
 
-### SQLite schema (sketch)
+### SQLite schema
 
-Every row carries `source`.
+Built in `src/db.ts` (schema version 1). Every data table carries `source` (`github` in v1).
 
-- `profile`: one row per run (date, followers, stars received, …)
-- `repos`: name_with_owner, owner, is_private, is_fork, parent, created_at, pushed_at, language, stars, description, gone_at
-- `items`: node_id, kind (issue, pr, issue_comment, commit_comment, discussion, discussion_reply, review), repo, created_at, title, url, state, merged_at, gone_at
+- `meta`: schema version. A file from another version is refused rather than migrated, since v1 rebuilds the database every run.
+- `profile`: login, created_at, bio, location, company
+- `orgs`: login, name (public memberships)
+- `repos`: name_with_owner, owner, is_own, is_private, is_fork, is_archived, parent, description, stars, licence, language, created_at, pushed_at. Own repos and the external repos on the page both live here
+- `items`: node_id, kind (pr, issue, issue_comment, commit_comment, discussion, discussion_reply, review, new_repo, fork; anything else is rejected), repo, created_at, title, url, state, merged_at
 - `commits`: sha (one row per commit), repo, authored_at, first line of message, additions, deletions
-- `events`: event id, type, repo, branch, created_at
-- `orgs`: login, name
-- `calendar`: date, total. `year_totals`: year, commits, issues, prs, reviews, restricted
-- `runs`: started, finished, API calls used, items dropped as private, error
+- `calendar`: date, total. `year_totals`: year, contributions, commits, issues, prs, reviews, restricted
+- `runs`: started_at, finished_at, API calls, items collected, items dropped as private, error
 
-`is_private` is always false in v1; it stays for the private-repos feature. All timestamps are stored in UTC.
+Later, with the state store: `events` (event id, type, repo, branch, created_at) and `gone_at` on repos and items.
+
+`is_private` is always false in v1; it stays for the private-repos feature. **Every timestamp must be UTC** (`…Z`): the schema rejects anything else, so a collector that forgets to convert (commit search returns local offsets) fails loudly instead of mis-sorting the feed.
 
 Size: a few MB, mostly commits and line counts. Measured: 1568 public items made a 380 KB SQLite file.
 
@@ -255,7 +257,7 @@ Verdict: the author liked all three, which led to the combined layout above.
 
 Each step ends with tests passing and the README updated.
 
-1. **Skeleton:**
+1. **Skeleton** (done 2026-11-25):
    - flox environment and `.envrc` (activates flox, loads `.env`);
    - TypeScript on Node 24, run directly with no build step;
    - Justfile (`just test`, `just collect`, `just render`, `just dev`, `just record-fixtures`);

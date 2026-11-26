@@ -22,14 +22,20 @@ GitHub spreads this across the profile graph, the repositories tab, search and p
 3. Optional: set any of the `ACTIVITY_*` variables (Settings → Secrets and variables → Actions → Variables). They're listed in [Settings](docs/design.md#settings) and [.env.example](.env.example).
 4. Enable GitHub Pages with "GitHub Actions" as the source.
 
-## Development (planned)
+## Development
 
-Uses flox and direnv: `.envrc` activates the flox environment and loads `.env`. Copy `.env.example` to `.env` and set `GH_PAT` to run against the live API; tests run offline from recorded fixtures. Common commands will be in the Justfile:
+Uses flox and direnv: `.envrc` activates the flox environment (Node 24, just, sqlite) and loads `.env`. Run `direnv allow` once. Flox needs a FloxHub login to resolve packages (`flox auth login`). Without flox, any Node 24 and just will do. Then `npm install` for the type-checker.
 
-- `just collect` fetches your data once into `state.db` (a few minutes);
-- `just render` builds `dist/index.html` from it in under a second, with no network;
-- `just dev` re-renders on every save, so you can iterate on the page without fetching again;
-- `just test` runs the offline tests.
+Copy `.env.example` to `.env` and set `GH_PAT` to run against the live API; tests run offline from recorded fixtures.
+
+- `just test` runs the offline tests (`node:test`, TypeScript run directly, no build step);
+- `just typecheck` type-checks;
+- `just collect` fetches your data once into `state.db` (a few minutes; build step 2, not built yet);
+- `just render` builds `dist/index.html` from it in under a second, with no network (build step 4);
+- `just dev` re-renders on every save, so you can iterate on the page without fetching again (build step 4);
+- `just record-fixtures` refreshes the recorded API responses from the live API (build step 2).
+
+**Status:** build step 1 (skeleton) is done: the dev environment, the Justfile, the test runner and the SQLite database (`src/db.ts`).
 
 ## Docs
 
