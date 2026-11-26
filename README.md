@@ -22,7 +22,7 @@ GitHub spreads this across the profile graph, the repositories tab, search and p
 3. Optional: set any of the `ACTIVITY_*` variables (Settings → Secrets and variables → Actions → Variables). They're listed in [Settings](docs/design.md#settings) and [.env.example](.env.example).
 4. Enable GitHub Pages with "GitHub Actions" as the source.
 
-## Behaviour
+## Methodology
 
 How the page decides what to show. The reasons behind each rule are in the Decisions table of [docs/design.md](docs/design.md). The collection rules are built; the display rules arrive with the renderer (build step 4).
 
