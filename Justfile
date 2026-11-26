@@ -1,5 +1,7 @@
 # Common commands. `just` on its own lists them.
 
+set dotenv-load := true
+
 default:
     @just --list
 
@@ -11,9 +13,9 @@ test:
 typecheck:
     npx tsc -p .
 
-# Fetch your public GitHub data into state.db (build step 2)
+# Fetch your public GitHub data into state.db (needs GH_PAT and ACTIVITY_USER, e.g. in .env)
 collect:
-    @echo "Not built yet: build step 2 in docs/design.md" && exit 1
+    node src/cli/collect.ts
 
 # Render dist/index.html from state.db (build step 4)
 render:
@@ -23,9 +25,9 @@ render:
 dev:
     @echo "Not built yet: build step 4 in docs/design.md" && exit 1
 
-# Refresh the recorded API fixtures from the live API (build step 2)
+# Refresh the recorded API fixtures from the live API (needs a public-only GH_PAT; refuses to save anything private)
 record-fixtures:
-    @echo "Not built yet: build step 2 in docs/design.md" && exit 1
+    node src/cli/collect.ts --record
 
 # PROTOTYPE, throwaway: fetch your public data (if missing) and serve the page mockup on http://localhost:8137
 prototype:

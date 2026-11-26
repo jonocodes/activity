@@ -45,7 +45,7 @@ Designed 2026-11-23 to 2026-11-24, before any code, and revised on 2026-11-24 af
 | Achievements: a link only | No API exists. Link to `github.com/<user>?tab=achievements` |
 | **Dates: stored in UTC, grouped in the owner's time zone, ages shown by the browser** (2026-11-24) | A page rendered hourly in UTC can't say "today": it goes stale when a run fails and is wrong for most visitors. The prototype already put "yesterday" items under the previous week. See [Dates and time zones](#dates-and-time-zones) |
 | **TypeScript on Node 24** (2026-11-24) | Node 24 runs `.ts` files directly (type stripping) and has `node:sqlite` and `node:test` built in: no build step, no native modules, few dependencies. It's on the Actions runners already, and the code could move to a Cloudflare Worker later. Bun would also work; Node needs nothing extra |
-| **Dev environment: flox plus direnv** (2026-11-24) | The author's standard setup. `.envrc` activates flox and loads `.env` |
+| **The repo needs only Node 24 and just; dev environment files stay local** (2026-11-25, revised) | Flox and direnv are the author's personal workflow, not something a fork should inherit. `.flox/` and `.envrc` are gitignored; the Justfile loads `.env` itself (`dotenv-load`) |
 | **Keep-alive by re-enabling the workflow through the API, not by committing** (2026-11-24) | GitHub turns off scheduled workflows after 60 days without repo activity, and this repo's runs never commit. Each run calls `gh workflow enable` with `GITHUB_TOKEN` (`actions: write`), so the repo needs no extra commits. This is the approach `keepalive-workflow` uses in its API mode; to be confirmed once built |
 | Not doing: RSS output, SVG README cards, a public sql.js query box | Not wanted for now. SVG cards matter only for embedding in a GitHub profile README (GitHub strips everything but images). A public `.db` plus sql.js could be added later at little cost |
 
@@ -258,7 +258,7 @@ Verdict: the author liked all three, which led to the combined layout above.
 Each step ends with tests passing and the README updated.
 
 1. **Skeleton** (done 2026-11-25):
-   - flox environment and `.envrc` (activates flox, loads `.env`);
+   - a Justfile that loads `.env`; the repo needs only Node 24 and just (dev environment files stay local);
    - TypeScript on Node 24, run directly with no build step;
    - Justfile (`just test`, `just collect`, `just render`, `just dev`, `just record-fixtures`);
    - `node:test`;

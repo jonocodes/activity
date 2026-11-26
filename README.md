@@ -22,20 +22,51 @@ GitHub spreads this across the profile graph, the repositories tab, search and p
 3. Optional: set any of the `ACTIVITY_*` variables (Settings → Secrets and variables → Actions → Variables). They're listed in [Settings](docs/design.md#settings) and [.env.example](.env.example).
 4. Enable GitHub Pages with "GitHub Actions" as the source.
 
+## Behaviour
+
+How the page decides what to show. The reasons behind each rule are in the Decisions table of [docs/design.md](docs/design.md). The collection rules are built; the display rules arrive with the renderer (build step 4).
+
+**What's collected**
+- Public activity only. The token can only read public data, and anything marked private is dropped on arrival anyway, in case a token can see more. The log reports how many items were dropped, never their names.
+- Items: commits, pull requests, issues, issue and commit comments, discussions, discussion replies, reviews, and repos you created or forked. Your public org memberships and GitHub's daily contribution counts are collected too.
+- Every timestamp is stored in UTC.
+
+**Commits**
+- Commits in your own repos, forks included, come from each repo's default branch. Commits in other people's repos come from GitHub's commit search, which only covers default branches.
+- A fork is read only from the day you forked it; older commits belong to the upstream.
+- Each commit is counted once. When the same commit is found in several repos, it's credited to the one that isn't a fork; if all are forks, to your own fork. A commit that exists only in your fork stays with your fork.
+
+**Repos and forks**
+- **Projects** shows your favorites (if set) and then your own repos. **Contributing to** shows other people's repos you've worked in.
+- A fork you made to contribute upstream isn't listed on its own: your commits in it are counted on the upstream's row in Contributing to, with a link to the fork.
+- A fork you've **adopted**, meaning you've opened 3 or more pull requests or issues inside it, is your own project: it's listed under Projects as "fork of …" and keeps its own commits. Pull requests you send upstream still count on the upstream's row, so a fork can show in both places without anything counted twice. The fork's name isn't used to decide this, since upstream repos get renamed too.
+- A fork whose upstream was deleted is listed under Projects, marked as such. Forks with no work of yours aren't listed, though "forked X" still appears in the feed.
+- Favorites (`ACTIVITY_FAVORITES`) are shown in your order and aren't repeated in the list below them.
+
+**Feed and dates**
+- Which day an item falls on is decided by your time zone (`ACTIVITY_TIMEZONE`). Items of the same kind, in the same repo, on the same day become one expandable row: commits from 2, everything else from 3.
+- The page never says "today" or "yesterday". Dates are plain; items under a week old show their age ("5 h ago"), worked out in the visitor's browser.
+- Issue and commit comments are collected but hidden unless `ACTIVITY_FEED_COMMENTS` is on.
+
+**When something goes wrong**
+- A run fails, and doesn't deploy, on an API error that persists after retries, a GraphQL error, or a commit search reporting incomplete results. A deleted repo is simply skipped.
+- A rate-limit wait of up to 90 seconds is waited out; a longer one fails the run.
+- The live page stays as it was until a run succeeds. A run also refuses to deploy if the number of items fell by more than 10% (build step 5).
+
 ## Development
 
-Uses flox and direnv: `.envrc` activates the flox environment (Node 24, just, sqlite) and loads `.env`. Run `direnv allow` once. Flox needs a FloxHub login to resolve packages (`flox auth login`). Without flox, any Node 24 and just will do. Then `npm install` for the type-checker.
+Needs Node 24 or later and [just](https://github.com/casey/just); bring them however you like (your own dev environment files, such as `.envrc` or `.flox/`, are gitignored). Then `npm install`, which only adds the type-checker.
 
-Copy `.env.example` to `.env` and set `GH_PAT` to run against the live API; tests run offline from recorded fixtures.
+Copy `.env.example` to `.env` and set `GH_PAT` and `ACTIVITY_USER` to run against the live API (the Justfile loads `.env`); tests run offline from fixtures. For `GH_PAT`, create a fine-grained token (GitHub → Settings → Developer settings → Fine-grained tokens) with repository access **Public repositories (read-only)** and no other permissions.
 
 - `just test` runs the offline tests (`node:test`, TypeScript run directly, no build step);
 - `just typecheck` type-checks;
-- `just collect` fetches your data once into `state.db` (a few minutes; build step 2, not built yet);
+- `just collect` fetches your public data into `state.db` (a few minutes; mostly commit search, which allows 30 requests a minute). It prints counts only, never titles, and drops anything private;
 - `just render` builds `dist/index.html` from it in under a second, with no network (build step 4);
 - `just dev` re-renders on every save, so you can iterate on the page without fetching again (build step 4);
-- `just record-fixtures` refreshes the recorded API responses from the live API (build step 2).
+- `just record-fixtures` does the same and saves every API exchange to `test/fixtures/recorded/github.json.gz`, which the tests replay. It refuses to save if any response holds private data, so use the public-only token.
 
-**Status:** build step 1 (skeleton) is done: the dev environment, the Justfile, the test runner and the SQLite database (`src/db.ts`).
+**Status:** build step 1 (skeleton) is done. Build step 2 (the GitHub collector, `src/github/`) is built and tested against a fake GitHub; the recorded fixtures from a real account are still to come.
 
 ## Docs
 

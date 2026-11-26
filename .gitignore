@@ -4,3 +4,5 @@ state.db
 .env
 prototype/data.json
 .shots/
+.flox/
+.envrc
