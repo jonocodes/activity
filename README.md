@@ -18,7 +18,7 @@ GitHub spreads this across the profile graph, the repositories tab, search and p
 ## Planned setup for a fork
 
 1. Fork this repo and enable Actions in your fork's Actions tab.
-2. Create a fine-grained token with **Public repositories (read-only)** access and no extra permissions (see [Token](docs/design.md#token)). Add it as the `GH_PAT` secret.
+2. Create a fine-grained token with **Public repositories (read-only)** access, no extra permissions, and an expiry of one year or less (see [Token](docs/design.md#token)). Add it as the `GH_PAT` secret.
 3. Optional: set any of the `ACTIVITY_*` variables (Settings → Secrets and variables → Actions → Variables). They're listed in [Settings](docs/design.md#settings) and [.env.example](.env.example).
 4. Enable GitHub Pages with "GitHub Actions" as the source.
 
@@ -57,7 +57,7 @@ How the page decides what to show. The reasons behind each rule are in the Decis
 
 Needs Node 24 or later and [just](https://github.com/casey/just); bring them however you like (your own dev environment files, such as `.envrc` or `.flox/`, are gitignored). Then `npm install`, which only adds the type-checker.
 
-Copy `.env.example` to `.env` and set `GH_PAT` and `ACTIVITY_USER` to run against the live API (the Justfile loads `.env`); tests run offline from fixtures. For `GH_PAT`, create a fine-grained token (GitHub → Settings → Developer settings → Fine-grained tokens) with repository access **Public repositories (read-only)** and no other permissions.
+Copy `.env.example` to `.env` and set `GH_PAT` and `ACTIVITY_USER` to run against the live API (the Justfile loads `.env`); tests run offline from fixtures. For `GH_PAT`, create a fine-grained token (GitHub → Settings → Developer settings → Fine-grained tokens) with repository access **Public repositories (read-only)**, no other permissions, and an **expiry of one year or less**: some organizations (NixOS, for one) refuse fine-grained tokens that live longer, even for public data, and a run then fails. Renew it yearly; GitHub emails before it expires.
 
 - `just test` runs the offline tests (`node:test`, TypeScript run directly, no build step);
 - `just typecheck` type-checks;

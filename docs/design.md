@@ -232,6 +232,8 @@ All optional, set as Actions variables (Settings → Secrets and variables → A
 
 A dedicated token, stored as the `GH_PAT` Actions secret: a fine-grained PAT with repository access set to **Public repositories (read-only)** and no extra permissions. It's read-only, can't see anything private, and needs no org approval. A classic PAT with no scopes ticked is the fallback; it's also public read-only.
 
+**Expiry: one year or less** (found 2026-11-26). Some organizations and enterprises (`cypht-org`, NixOS) forbid fine-grained tokens with a lifetime over 366 days, even for reading public data. The first recording failed on the owner's forks of their repos with a FORBIDDEN error. The collector keeps failing the run on it, since the error names the fix and tolerating it would mislabel those forks; the cost is renewing the token yearly.
+
 Build step 2 checks that every query works with this token. GraphQL has had gaps with fine-grained tokens, and the anonymous private total may depend on the profile's "private contributions" setting.
 
 ## Testing
