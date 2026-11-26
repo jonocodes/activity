@@ -104,7 +104,10 @@ const short = r => r.startsWith(ME + '/') ? r.slice(ME.length + 1) : r;
 
 // repos
 const own = Object.fromEntries(D.repos.map(r => [r.nameWithOwner, r]));
-const upstreamOf = r => own[r]?.isFork && own[r].parent ? own[r].parent.nameWithOwner : null;
+// adopted fork: the owner has opened 3 or more pull requests or issues inside it, so its own commits stay with it instead of folding upstream
+const insideFork = {}; D.items.filter(i => (i.kind === 'pr' || i.kind === 'issue') && own[i.repo]?.isFork).forEach(i => insideFork[i.repo] = (insideFork[i.repo] || 0) + 1);
+const adopted = new Set(Object.keys(insideFork).filter(r => insideFork[r] >= 3));
+const upstreamOf = r => own[r]?.isFork && own[r].parent && !adopted.has(r) ? own[r].parent.nameWithOwner : null;
 // commits: one per sha; prefer a non-fork repo, else the owner's own fork, else the first hit
 const bySha = {};
 for (const c of D.commits) {
@@ -165,8 +168,8 @@ function projectRows() {
   const favNames = P.has('favorites') ? P.get('favorites').split(',').filter(Boolean) : D.pins.map(p => p.nameWithOwner);
   const favorites = favNames.map(r => ({ ...row(r), meta: own[r] || D.externalRepos?.[r] || D.pins.find(p => p.nameWithOwner === r) }));
   const external = Object.values(per).filter(r => !r.repo.startsWith(ME + '/') && (r.commit + r.pr + r.issue + r.discussion) > 0).sort((a, b) => b.last.localeCompare(a.last)).map(r => ({ ...r, meta: D.externalRepos?.[r.repo] }));
-  const mine = D.repos.filter(r => (!r.isFork || !r.parent) && !favNames.includes(r.nameWithOwner)).map(m => ({ ...row(m.nameWithOwner), meta: m, last: per[m.nameWithOwner]?.last || m.pushedAt })).sort((a, b) => b.last.localeCompare(a.last));
-  const idleForks = D.repos.filter(r => r.isFork && r.parent && !per[r.parent.nameWithOwner]?.forks.has(r.nameWithOwner)).length;
+  const mine = D.repos.filter(r => (!r.isFork || !r.parent || adopted.has(r.nameWithOwner)) && !favNames.includes(r.nameWithOwner)).map(m => ({ ...row(m.nameWithOwner), meta: m, last: per[m.nameWithOwner]?.last || m.pushedAt })).sort((a, b) => b.last.localeCompare(a.last));
+  const idleForks = D.repos.filter(r => r.isFork && r.parent && !adopted.has(r.nameWithOwner) && !per[r.parent.nameWithOwner]?.forks.has(r.nameWithOwner)).length;
   return { favorites, external, mine, idleForks };
 }
 
@@ -246,7 +249,7 @@ const strip = () => `<div class="strip">${STATS.allTime.map(([l, n]) => `<div><s
 const projRow = (r, mode = 'depth', axis) => {
   const m = r.meta || {};
   const lic = m.licenseInfo && m.licenseInfo.spdxId !== 'NOASSERTION' ? `<span class="badge">${m.licenseInfo.spdxId}</span>` : '';
-  const flags = [m.isArchived && '<span class="badge">archived</span>', m.isFork && !m.parent && '<span class="badge">fork of a deleted repo</span>'].filter(Boolean).join('');
+  const flags = [m.isArchived && '<span class="badge">archived</span>', m.isFork && !m.parent && '<span class="badge">fork of a deleted repo</span>', m.isFork && m.parent && adopted.has(r.repo) && `<span class="badge">fork of ${esc(m.parent.nameWithOwner)}</span>`].filter(Boolean).join('');
   const forks = r.forks.size ? `<span class="muted small"> · incl. commits in <a href="https://github.com/${[...r.forks][0]}">your fork</a></span>` : '';
   const counts = [['commit', 'commits'], ['pr', 'PRs'], ['issue', 'issues'], ['discussion', 'discussions']].filter(([k]) => mode === 'depth' || r[k]).map(([k, l]) => `<b>${r[k]}</b> ${l}`).join(' · ');
   const chart = mode === 'breadth' ? (P.get('rows') === 'spark' ? spark(r.weeks) : dotStrip(r.its, axis[0], axis[1])) : (P.get('depth') === 'spark' ? spark(r.weeks) : monthBars(r.months));

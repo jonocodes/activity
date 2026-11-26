@@ -26,6 +26,10 @@ _Avoid_: pin, pinned, featured
 **Fork**:
 An own repo created as a copy of another repo.
 
+**Adopted fork**:
+A fork the owner has made their own, shown by three or more pull requests or issues the owner opened inside it. Its work is the owner's project, not a contribution upstream.
+_Avoid_: hard fork, renamed fork
+
 **Upstream**:
 The repo a fork was copied from: its parent.
 
