@@ -19,6 +19,10 @@ A repo whose repo owner is the owner.
 A repo owned by someone else that the owner has items in.
 _Avoid_: upstream (reserved for a fork's parent), contributed repo
 
+**Favorite**:
+A repo the owner chose to highlight, in an order the owner chose. Unrelated to GitHub's pins.
+_Avoid_: pin, pinned, featured
+
 **Fork**:
 An own repo created as a copy of another repo.
 

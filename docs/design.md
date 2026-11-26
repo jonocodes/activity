@@ -25,7 +25,8 @@ Designed 2026-11-23 to 2026-11-24, before any code, and revised on 2026-11-24 af
 | **Each commit is counted once, even when search finds it in several repos** (2026-11-24) | Commit search returns the same sha in a repo and again in every fork that contains it, which would count one commit several times. Keep one row per sha, credited to the repo that isn't a fork; if every hit is a fork, prefer the user's own fork. A commit that exists only in a fork stays credited to that fork, since it may never have been merged upstream |
 | Every stored item has a `source` (`github` first) | Hacker News is likely next, possibly custom (e.g. reading GoatCounter); Codeberg (Forgejo API) after that. Each source is a module writing to the same tables. A failing source keeps its last data and doesn't stop the run |
 | Combine all three prototype views | A stats strip (variant C) above a shared heatmap, then Feed (A) and Projects (B) tabs. Clicking a project filters the feed. Screenshots: [img/](img/) |
-| Pinned projects at the top of the Projects view | Defaults to GitHub's own pins (GraphQL `pinnedItems`, live each run). `ACTIVITY_PINNED` overrides them and can include upstream projects or Codeberg repos |
+| **Favorites, not GitHub pins** (2026-11-25) | The owner picks which repos to highlight, and in what order, with `ACTIVITY_FAVORITES`, independent of their GitHub pins. Unset means no Favorites section. Any repo can be a favorite, own or external |
+| **Three tabs: Feed, Projects, Contributing to** (2026-11-25) | The owner's own work and their work in other people's repos are different stories, so "Contributing to" gets its own tab instead of being a group inside Projects. Named "Contributing to", not "Contributions", because a contribution is GitHub's daily counted unit (see `GLOSSARY.md`), which includes own repos |
 | List public org memberships only (2026-11-24) | Memberships are private by default on GitHub; publishing them is a private-data choice, deferred with private repos. REST `/users/<user>/orgs` lists only public memberships whatever the token, and needs no scope |
 | Archive the 30-day events feed once the state store exists | The only record of pushes to non-main branches and branch create/delete. History from before the first run can't be recovered |
 | **Neutral theme only; no theme setting** (2026-11-25) | The page doesn't need to match the author's blog. It follows the system light/dark setting |
@@ -80,7 +81,7 @@ Not in v1 (decided 2026-11-24). The plan: keep `state.db` between runs, so a run
 | Private work at a job you later leave | **No.** After leaving, GitHub keeps only anonymous daily counts | Org, repos, commit and line counts survive the job change | Was the main reason; deferred with [private repos](#future-private-repos) |
 | Pushes to non-main branches; branch create/delete | Only for 30 days (events). Walking the branches of your own repos covers branches that still exist, and PRs keep their commits after a branch is deleted | Branches deleted without a PR; repos you can't read | Small |
 | Followers, stars received | Current values only (stars have dates, followers don't) | Growth over time | Vanity |
-| Daily counts incl. the anonymous private total; pins; orgs; profile | Yes, live | Nothing | None |
+| Daily counts incl. the anonymous private total; orgs; profile | Yes, live | Nothing | None |
 | **Speed** | A full fetch: measured 99 s for issues, PRs, comments and discussions with sequential requests, plus at least a minute of commit search (30 searches a minute). Roughly 3–5 min, less with parallel requests | Incremental runs take seconds | Practical; matters more for bigger histories |
 
 Where to keep it (2026-11-25):
@@ -104,7 +105,7 @@ Live numbers and the limits behind each are in [research.md](research.md). In v1
 
 | Data | Source | Notes |
 |---|---|---|
-| Profile: created, bio, location, company, pins | GraphQL `user(login:)` | Author's account created 2012-01-06 |
+| Profile: created, bio, location, company | GraphQL `user(login:)` | Author's account created 2012-01-06 |
 | Public org memberships | REST `/users/<user>/orgs` | Lists public memberships only, whatever the token. The author has 8 orgs, all private on the public profile, so none show until they make some public |
 | Repos owned, forks and their upstream, licences | GraphQL `repositories` | `isFork`, `parent`, `isPrivate` (drop if true), `isArchived`, `licenseInfo` |
 | Issues, PRs, issue comments, commit comments, discussions, discussion replies | GraphQL `issues`, `pullRequests`, `issueComments`, `commitComments`, `repositoryDiscussions`, `repositoryDiscussionComments` | Full history, no time window. Newest first; with state, stop at the last item stored |
@@ -140,12 +141,12 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
     - last 12 months: contributions, current streak, longest streak (from GitHub's calendar; a day with nothing yet doesn't break the current streak until it's over);
     - the anonymous private contributions count, if GitHub returns it;
   - the heatmap of the last 12 months;
-  - Feed and Projects tabs. Projects has these groups:
-    - Pinned;
-    - Contributing to: external repos, each row counting the owner's commits, pull requests, issues and discussions there, including commits in the owner's fork of it (linked);
-    - My projects: own repos that aren't forks, with a licence badge; archived ones marked; plus forks whose upstream was deleted, marked as such;
+  - three tabs:
+    - Feed;
+    - Projects: Favorites (if set, in the owner's order), then My projects: own repos that aren't forks, with a licence badge, archived ones marked, plus forks whose upstream was deleted, marked as such;
+    - Contributing to: external repos, most recent first, each row counting the owner's commits, pull requests, issues and discussions there, including commits in the owner's fork of it (linked);
   - older years in collapsed sections, each opening with that year's heatmap;
-  - on each Projects row, a sparkline of the owner's weekly commits over the last 12 months;
+  - on each repo row (Projects and Contributing to), a sparkline of the owner's weekly commits over the last 12 months;
   - a footer saying when the page was last updated.
 
   It's pre-rendered, with a little JavaScript for the filter chips, the tabs and item ages.
@@ -216,7 +217,7 @@ All optional, set as Actions variables (Settings → Secrets and variables → A
 | `ACTIVITY_USER` | the repo owner | GitHub login to build the page for |
 | `ACTIVITY_TITLE` | `<user> on GitHub` | Page title |
 | `ACTIVITY_TIMEZONE` | `UTC` | IANA time zone that decides which day an item falls on |
-| `ACTIVITY_PINNED` | your GitHub pins | Comma-separated `owner/repo` list shown at the top of Projects |
+| `ACTIVITY_FAVORITES` | none (no Favorites section) | Comma-separated `owner/repo` list, in display order, shown at the top of Projects |
 | `ACTIVITY_SECTIONS` | all except `habits` | Comma-separated: `profile`, `stats`, `heatmap`, `feed`, `projects`, `habits` (busiest hours and weekdays) |
 | `ACTIVITY_FEED_COMMENTS` | `false` | Show issue comments in the feed |
 

@@ -1,11 +1,11 @@
 <!doctype html>
 <!--
   PROTOTYPE, throwaway. Question: does the v1 page specified in issue #1 / docs/design.md look right on real data?
-  Three variants, switchable with ?variant=A|B|C, the bottom bar, or the ← → keys:
+  Two variants (B, a sidebar layout, was dropped 2026-11-25), switchable with ?variant=A|C, the bottom bar, or the ← → keys:
     A  As specified: profile + stats strip + heatmap, then Feed / Projects tabs, older years collapsed.
-    B  Sidebar: profile, stats and the repo list in a sticky left column; one feed on the right, filtered by clicking repos.
     C  Year by year: the whole page is a timeline of years, each with its heatmap, stats, repos and items.
   Shared: the data rules (commit dedup, forks folded into upstream, groups, owner's time zone, streaks, licences).
+  ?favorites=owner/repo,owner/repo sets the favorites in order (stands in for ACTIVITY_FAVORITES; the demo default is a sample list).
   ?tz=<IANA zone> overrides the owner's time zone (default: your browser's). Data: prototype/data.json (public only).
 -->
 <html lang="en">
@@ -148,11 +148,13 @@ function projectRows() {
     if (upstreamOf(it.repo)) r.forks.add(it.repo);
     if (it.kind === 'commit') { const w = 51 - Math.floor((NOW - new Date(it.at)) / (7 * 864e5)); if (w >= 0 && w < 52) r.weeks[w]++; }
   }
-  const pinned = (P.get('pinned')?.split(',') || D.pins.map(p => p.nameWithOwner)).map(r => ({ ...row(r), meta: own[r] || D.pins.find(p => p.nameWithOwner === r) }));
+  // favorites: the owner's own ordered list (ACTIVITY_FAVORITES); not GitHub's pins. Demo default: a sample list.
+  const favNames = P.has('favorites') ? P.get('favorites').split(',').filter(Boolean) : D.pins.map(p => p.nameWithOwner);
+  const favorites = favNames.map(r => ({ ...row(r), meta: own[r] || D.pins.find(p => p.nameWithOwner === r) }));
   const external = Object.values(per).filter(r => !r.repo.startsWith(ME + '/') && (r.commit + r.pr + r.issue + r.discussion) > 0).sort((a, b) => b.last.localeCompare(a.last));
   const mine = D.repos.filter(r => !r.isFork || !r.parent).map(m => ({ ...row(m.nameWithOwner), meta: m, last: per[m.nameWithOwner]?.last || m.pushedAt })).sort((a, b) => b.last.localeCompare(a.last));
   const idleForks = D.repos.filter(r => r.isFork && r.parent && !per[r.parent.nameWithOwner]?.forks.has(r.nameWithOwner)).length;
-  return { pinned, external, mine, idleForks };
+  return { favorites, external, mine, idleForks };
 }
 
 // ---------- shared rendering helpers (pieces, not layouts) ----------
@@ -211,40 +213,21 @@ function VariantA() {
     const recent = shown.filter(i => i.at >= cutoff), older = shown.filter(i => i.at < cutoff);
     const yrs = [...new Set(older.map(i => yearOf(i.at)))].sort().reverse();
     app.innerHTML = `<div class="wrap"><h1>${esc(ME)} on GitHub</h1><div class="profile">${profileLine()}</div>${strip()}${heatmap(D.lastYear.calendar)}
-      <div class="tabs"><button data-tab="feed" class="${state.tab === 'feed' ? 'on' : ''}">Feed</button><button data-tab="projects" class="${state.tab === 'projects' ? 'on' : ''}">Projects</button></div>
+      <div class="tabs">${[['feed','Feed'],['projects','Projects'],['contributing','Contributing to']].map(([k, l]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div>
       ${state.tab === 'feed' ? `${chips(state.on, items)}${state.repo ? `<div class="filter">Showing only <b>${esc(short(state.repo))}</b> (including commits in your fork) · <a href="#" id="clear">show all</a></div>` : ''}
         <h2>Last 12 months</h2>${weeks(recent) || '<p class="muted">Nothing.</p>'}
         ${yrs.map(y => `<details class="year" data-y="${y}"><summary>${y} <span class="muted small">· ${older.filter(i => yearOf(i.at) === y).length} items${y === yearOf(cutoff) ? ', before the last 12 months' : ''}</span></summary><div class="body"></div></details>`).join('')}`
-      : `<h2>Pinned</h2>${pr.pinned.map(r => projRow(r)).join('')}
-        <h2>Contributing to</h2>${pr.external.slice(0, 12).map(r => projRow(r)).join('')}${pr.external.length > 12 ? `<details><summary class="muted">${pr.external.length - 12} more</summary>${pr.external.slice(12).map(r => projRow(r)).join('')}</details>` : ''}
+      : state.tab === 'projects' ? `${pr.favorites.length ? `<h2>Favorites</h2>${pr.favorites.map(r => projRow(r)).join('')}` : ''}
         <h2>My projects</h2>${pr.mine.slice(0, 15).map(r => projRow(r)).join('')}${pr.mine.length > 15 ? `<details><summary class="muted">${pr.mine.length - 15} more</summary>${pr.mine.slice(15).map(r => projRow(r)).join('')}</details>` : ''}
-        <p class="note">${pr.idleForks} forks without commits of yours aren't listed (the "forked" items stay in the feed).</p>`}
+        <p class="note">${pr.idleForks} forks without commits of yours aren't listed (the "forked" items stay in the feed). Forks you did work in appear under Contributing to, on their upstream's row.</p>`
+      : `<p class="note">Other people's repos you've worked in, most recent first. Commits in your fork of a repo count on that repo's row.</p>
+        ${pr.external.slice(0, 20).map(r => projRow(r)).join('')}${pr.external.length > 20 ? `<details><summary class="muted">${pr.external.length - 20} more</summary>${pr.external.slice(20).map(r => projRow(r)).join('')}</details>` : ''}`}
       ${footer()}</div>`;
     app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { state.tab = b.dataset.tab; draw(); });
     app.querySelectorAll('.chip').forEach(b => b.onclick = () => { const k = b.dataset.k; state.on.has(k) ? state.on.delete(k) : state.on.add(k); draw(); });
     app.querySelectorAll('.proj .name').forEach(b => b.onclick = () => { state.repo = b.dataset.repo; state.tab = 'feed'; draw(); scrollTo(0, 0); });
     app.querySelector('#clear')?.addEventListener('click', e => { e.preventDefault(); state.repo = null; draw(); });
     app.querySelectorAll('details.year').forEach(d => d.addEventListener('toggle', () => { const b = d.querySelector('.body'); if (d.open && !b.innerHTML) { const y = d.dataset.y; b.innerHTML = heatmap(D.years[y]?.calendar) + weeks(older.filter(i => yearOf(i.at) === y)); } }));
-  };
-  draw();
-}
-
-// ---------- B: sidebar ----------
-function VariantB() {
-  const app = document.getElementById('app'), state = { on: new Set(DEFAULT_ON), repo: null };
-  const pr = projectRows();
-  const all = [...pr.pinned.map(r => ({ ...r, pin: true })), ...pr.external, ...pr.mine.filter(r => r.commit + r.pr + r.issue + r.discussion)];
-  const seen = new Set(), list = all.filter(r => !seen.has(r.repo) && seen.add(r.repo));
-  const draw = () => {
-    const shown = items.filter(i => state.on.has(i.kind) && (!state.repo || rowOf(i.repo) === state.repo));
-    const sel = state.repo && list.find(r => r.repo === state.repo);
-    app.innerHTML = `<div class="side"><aside><h1>${esc(ME)}</h1><div class="profile">${profileLine()}</div>${strip()}${heatmap(D.lastYear.calendar)}
-        <h3>Repos</h3><div class="rl ${state.repo ? '' : 'on'}" data-repo="">All activity <span class="muted">${items.length}</span></div>
-        ${list.map(r => `<div class="rl ${state.repo === r.repo ? 'on' : ''}" data-repo="${r.repo}"><span>${r.pin ? '📌 ' : ''}${esc(short(r.repo))}</span><span class="muted">${r.commit + r.pr + r.issue + r.discussion}</span></div>`).join('')}
-        <p class="note">${pr.idleForks} idle forks not listed.</p></aside>
-      <main>${sel ? projRow(sel) : ''}${chips(state.on, items)}${weeks(shown.slice(0, 600))}${shown.length > 600 ? `<p class="muted">… ${shown.length - 600} older items (the real page would page or collapse these by year)</p>` : ''}${footer()}</main></div>`;
-    app.querySelectorAll('.rl').forEach(b => b.onclick = () => { state.repo = b.dataset.repo || null; draw(); });
-    app.querySelectorAll('.chip').forEach(b => b.onclick = () => { const k = b.dataset.k; state.on.has(k) ? state.on.delete(k) : state.on.add(k); draw(); });
   };
   draw();
 }
@@ -271,7 +254,7 @@ function VariantC() {
 }
 
 // ---------- switcher ----------
-const V = { A: ['As specified', VariantA], B: ['Sidebar', VariantB], C: ['Year by year', VariantC] }, keys = Object.keys(V);
+const V = { A: ['As specified', VariantA], C: ['Year by year', VariantC] }, keys = Object.keys(V);
 const show = k => { V[k][1](); document.getElementById('plabel').textContent = `${k} (${V[k][0]}) · tz ${TZ}`; };
 const go = d => { const i = keys.indexOf(P.get('variant') || 'A'); const k = keys[(i + d + keys.length) % keys.length]; P.set('variant', k); history.replaceState(null, '', '?' + P); show(k); scrollTo(0, 0); };
 document.getElementById('prev').onclick = () => go(-1); document.getElementById('next').onclick = () => go(1);
