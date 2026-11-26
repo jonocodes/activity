@@ -1,7 +1,8 @@
 <!doctype html>
 <!--
   PROTOTYPE, throwaway. Question: does the v1 page specified in issue #1 / docs/design.md look right on real data?
-  Two variants (B, a sidebar layout, was dropped 2026-11-25), switchable with ?variant=A|C, the bottom bar, or the ← → keys:
+  One variant left (2026-11-25): B (a sidebar layout) and C (year by year) were dropped; C's per-year summary moved into A's older-year sections.
+  Earlier variants, switchable with ?variant= and the bottom bar:
     A  As specified: profile + stats strip + heatmap, then Feed / Projects tabs, older years collapsed.
     C  Year by year: the whole page is a timeline of years, each with its heatmap, stats, repos and items.
   Shared: the data rules (commit dedup, forks folded into upstream, groups, owner's time zone, streaks, licences).
@@ -164,7 +165,7 @@ function projectRows() {
   const favNames = P.has('favorites') ? P.get('favorites').split(',').filter(Boolean) : D.pins.map(p => p.nameWithOwner);
   const favorites = favNames.map(r => ({ ...row(r), meta: own[r] || D.externalRepos?.[r] || D.pins.find(p => p.nameWithOwner === r) }));
   const external = Object.values(per).filter(r => !r.repo.startsWith(ME + '/') && (r.commit + r.pr + r.issue + r.discussion) > 0).sort((a, b) => b.last.localeCompare(a.last)).map(r => ({ ...r, meta: D.externalRepos?.[r.repo] }));
-  const mine = D.repos.filter(r => !r.isFork || !r.parent).map(m => ({ ...row(m.nameWithOwner), meta: m, last: per[m.nameWithOwner]?.last || m.pushedAt })).sort((a, b) => b.last.localeCompare(a.last));
+  const mine = D.repos.filter(r => (!r.isFork || !r.parent) && !favNames.includes(r.nameWithOwner)).map(m => ({ ...row(m.nameWithOwner), meta: m, last: per[m.nameWithOwner]?.last || m.pushedAt })).sort((a, b) => b.last.localeCompare(a.last));
   const idleForks = D.repos.filter(r => r.isFork && r.parent && !per[r.parent.nameWithOwner]?.forks.has(r.nameWithOwner)).length;
   return { favorites, external, mine, idleForks };
 }
@@ -258,6 +259,13 @@ const chips = (on, list) => `<div class="chips">${Object.keys(LABEL).map(k => `<
 const footer = () => `<footer>Built ${timeEl(D.generatedAt)} · ${new Date(D.generatedAt).toLocaleString('en-US', { timeZone: TZ })} (${TZ}). Public activity only. <span class="muted">Prototype: ?tz=Europe/London to try another time zone.</span></footer>`;
 const cutoff = new Date(NOW - 365 * 864e5).toISOString();
 
+// a year's summary (from the dropped year-by-year variant): totals and the most active repos
+function yearSummary(y) {
+  const its = items.filter(i => yearOf(i.at) === y && DEFAULT_ON.includes(i.kind)), by = k => its.filter(i => i.kind === k).length;
+  const rc = {}; its.forEach(i => { const r = rowOf(i.repo); rc[r] = (rc[r] || 0) + 1; });
+  const top = Object.entries(rc).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  return `<p class="muted small">${(D.years[y]?.total ?? 0).toLocaleString()} contributions · ${by('commit')} commits · ${by('pr')} PRs · ${by('issue')} issues · ${by('discussion')} discussions · ${by('new_repo')} new repos<br>Most active in: ${top.map(([r, n]) => `<a href="https://github.com/${r}">${esc(short(r))}</a> (${n})`).join(', ')}</p>`;
+}
 // ---------- A: as specified ----------
 function VariantA() {
   const app = document.getElementById('app'), state = { tab: 'feed', on: new Set(DEFAULT_ON), repo: null };
@@ -288,34 +296,13 @@ function VariantA() {
     app.querySelectorAll('.chip').forEach(b => b.onclick = () => { const k = b.dataset.k; state.on.has(k) ? state.on.delete(k) : state.on.add(k); draw(); });
     app.querySelectorAll('.proj .name').forEach(b => b.onclick = () => { state.repo = b.dataset.repo; state.tab = 'feed'; draw(); scrollTo(0, 0); });
     app.querySelector('#clear')?.addEventListener('click', e => { e.preventDefault(); state.repo = null; draw(); });
-    app.querySelectorAll('details.year').forEach(d => d.addEventListener('toggle', () => { const b = d.querySelector('.body'); if (d.open && !b.innerHTML) { const y = d.dataset.y; b.innerHTML = heatmap(D.years[y]?.calendar) + weeks(older.filter(i => yearOf(i.at) === y)); } }));
+    app.querySelectorAll('details.year').forEach(d => d.addEventListener('toggle', () => { const b = d.querySelector('.body'); if (d.open && !b.innerHTML) { const y = d.dataset.y, its = older.filter(i => yearOf(i.at) === y); b.innerHTML = yearSummary(y) + heatmap(D.years[y]?.calendar) + weeks(its); } }));
   };
   draw();
 }
 
-// ---------- C: year by year ----------
-function VariantC() {
-  const app = document.getElementById('app');
-  const yrs = [...new Set(items.map(i => yearOf(i.at)))].sort().reverse();
-  const yearBlock = (y, open) => {
-    const its = items.filter(i => yearOf(i.at) === y && DEFAULT_ON.includes(i.kind));
-    const by = k => its.filter(i => i.kind === k).length;
-    const repoCounts = {}; its.forEach(i => { const r = rowOf(i.repo); repoCounts[r] = (repoCounts[r] || 0) + 1; });
-    const top = Object.entries(repoCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
-    return `<section class="yr"><div class="head"><span class="big">${y}</span>
-        <span class="muted">${(D.years[y]?.total ?? 0).toLocaleString()} contributions · ${by('commit')} commits · ${by('pr')} PRs · ${by('issue')} issues · ${by('discussion')} discussions · ${by('new_repo')} new repos</span></div>
-      ${heatmap(D.years[y]?.calendar)}
-      <div class="cols"><div><h3>Most active in</h3>${top.map(([r, n]) => `<div class="row" style="grid-template-columns:1fr auto"><span class="t"><a href="https://github.com/${r}">${esc(short(r))}</a>${upstreamOf(r) ? '' : ''}</span><span class="muted small">${n}</span></div>`).join('')}</div>
-        <div><h3>Highlights</h3>${its.filter(i => ['pr','discussion','new_repo'].includes(i.kind)).slice(0, 8).map(itemRow).join('')}</div></div>
-      <details ${open ? 'open' : ''}><summary class="muted">All ${its.length} items in ${y}</summary>${open ? weeks(its) : ''}</details></section>`;
-  };
-  app.innerHTML = `<div class="wrap"><h1>${esc(ME)} on GitHub</h1><div class="profile">${profileLine()}</div>${strip()}
-    ${yrs.map((y, i) => yearBlock(y, i === 0)).join('')}${footer()}</div>`;
-  app.querySelectorAll('section.yr details').forEach((d, i) => d.addEventListener('toggle', () => { if (d.open && !d.querySelector('h3, .row')) d.insertAdjacentHTML('beforeend', weeks(items.filter(x => yearOf(x.at) === yrs[i] && DEFAULT_ON.includes(x.kind)))); }));
-}
-
 // ---------- switcher ----------
-const V = { A: ['As specified', VariantA], C: ['Year by year', VariantC] }, keys = Object.keys(V);
+const V = { A: ['As specified', VariantA] }, keys = Object.keys(V);
 const show = k => { V[k][1](); document.getElementById('plabel').textContent = `${k} (${V[k][0]}) · tz ${TZ}`; };
 const go = d => { const i = keys.indexOf(P.get('variant') || 'A'); const k = keys[(i + d + keys.length) % keys.length]; P.set('variant', k); history.replaceState(null, '', '?' + P); show(k); scrollTo(0, 0); };
 document.getElementById('prev').onclick = () => go(-1); document.getElementById('next').onclick = () => go(1);
