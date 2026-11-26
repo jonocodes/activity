@@ -57,7 +57,7 @@ How the page decides what to show. The reasons behind each rule are in the Decis
 
 Needs Node 24 or later and [just](https://github.com/casey/just); bring them however you like (your own dev environment files, such as `.envrc` or `.flox/`, are gitignored). Then `npm install`, which only adds the type-checker.
 
-Copy `.env.example` to `.env` and set `GH_PAT` and `ACTIVITY_USER` to run against the live API (the Justfile loads `.env`); tests run offline from fixtures. For `GH_PAT`, create a fine-grained token (GitHub → Settings → Developer settings → Fine-grained tokens) with repository access **Public repositories (read-only)**, no other permissions, and an **expiry of one year or less**: some organizations (NixOS, for one) refuse fine-grained tokens that live longer, even for public data, and a run then fails. Renew it yearly; GitHub emails before it expires.
+Copy `.env.example` to `.env` and set `GH_PAT` and `ACTIVITY_USER` to run against the live API (the Justfile loads `.env`); tests run offline from fixtures. For `GH_PAT`, create a fine-grained token (GitHub → Settings → Developer settings → Fine-grained tokens) with repository access **Public repositories (read-only)**, no other permissions, and an **expiry of one year or less**: some organizations (NixOS, for one) refuse fine-grained tokens that live longer, even for public data, and a run then fails. Renew it before it expires; GitHub emails you a few days ahead, and an expired token makes every run fail.
 
 - `just test` runs the offline tests (`node:test`, TypeScript run directly, no build step);
 - `just typecheck` type-checks;
@@ -66,7 +66,7 @@ Copy `.env.example` to `.env` and set `GH_PAT` and `ACTIVITY_USER` to run agains
 - `just dev` re-renders on every save, so you can iterate on the page without fetching again (build step 4);
 - `just record-fixtures` does the same and saves every API exchange to `test/fixtures/recorded/github.json.gz`, which the tests replay. It refuses to save if any response holds private data, so use the public-only token.
 
-**Status:** build step 1 (skeleton) is done. Build step 2 (the GitHub collector, `src/github/`) is built and tested against a fake GitHub; the recorded fixtures from a real account are still to come.
+**Status:** build steps 1 (skeleton) and 2 (the GitHub collector, `src/github/`) are done. The collector is tested against a fake GitHub for edge cases and against a recording of a real account (`test/fixtures/recorded/`).
 
 ## Docs
 

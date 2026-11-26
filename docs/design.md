@@ -234,7 +234,7 @@ A dedicated token, stored as the `GH_PAT` Actions secret: a fine-grained PAT wit
 
 **Expiry: one year or less** (found 2026-11-26). Some organizations and enterprises (`cypht-org`, NixOS) forbid fine-grained tokens with a lifetime over 366 days, even for reading public data. The first recording failed on the owner's forks of their repos with a FORBIDDEN error. The collector keeps failing the run on it, since the error names the fix and tolerating it would mislabel those forks; the cost is renewing the token yearly.
 
-Build step 2 checks that every query works with this token. GraphQL has had gaps with fine-grained tokens, and the anonymous private total may depend on the profile's "private contributions" setting.
+Checked in build step 2 (2026-11-26): every query works with this token, and the anonymous private total (`restrictedContributionsCount`) still comes through.
 
 ## Testing
 
@@ -266,7 +266,7 @@ Each step ends with tests passing and the README updated.
    - Justfile (`just test`, `just collect`, `just render`, `just dev`, `just record-fixtures`);
    - `node:test`;
    - the SQLite adapter on `node:sqlite`.
-2. **GitHub collector into SQLite,** driven by recorded fixtures: profile, public orgs, repos, the GraphQL connections, `contributionsCollection` by year, commit search slices, line counts. Drops private items. Confirms the public-only token works for every query.
+2. **GitHub collector into SQLite** (done 2026-11-26), driven by recorded fixtures: profile, public orgs, repos, the GraphQL connections, `contributionsCollection` by year, commit search slices, line counts. Drops private items. Confirms the public-only token works for every query.
 3. **Settings from env vars,** validated; a render model; the privacy test.
 4. **Renderer:** the combined page, built from the prototype views, as snapshot-tested HTML, with dates as in [Dates and time zones](#dates-and-time-zones).
 5. **Workflow:** scheduled Action deploying to Pages, with the keep-alive, the failure rules and the shrink guard.

@@ -84,7 +84,7 @@ The v1 collector against the live API for `jonocodes`, with a token that could a
 - **External repos with details:** 167.
 - **Dropped as private:** 1,461 repos, items and commits, logged as a count only. No private repo name reached the database.
 - **Commits in own forks:** walking a fork's default branch found 24 commits in the author's adopted fork `tunnel-toggle`; commit search had found none.
-- Still to check: the same run with a public-only fine-grained token, and whether `restrictedContributionsCount` comes through with it.
+- **With a public-only fine-grained token** (2026-11-26, 90-day expiry): every query works. 225 API calls in 345 s; 0 items dropped as private; `restrictedContributionsCount` still comes through (1,236 for the last 12 months), so the anonymous private count can be shown. This run is the recorded fixture (`test/fixtures/recorded/github.json.gz`, 617 KB gzipped, commit search responses trimmed to the fields read).
 - **Token lifetime matters** (2026-11-26). A public-only fine-grained token with a lifetime over 366 days failed the first query: `cypht-org` and the NixOS enterprise "forbid access via a fine-grained personal access token if the token's lifetime is greater than 366 days". It hit the `parent` of the author's forks of their repos. Fine-grained tokens for this tool need an expiry of a year or less.
 
 ### Events API (`/users/{username}/events`)
