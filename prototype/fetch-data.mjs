@@ -2,12 +2,14 @@
 // Uses your local `gh` login. That token may see private repos, so every private repo and item is dropped here,
 // and the script fails if anything private survives. data.json is gitignored.
 // Usage: node prototype/fetch-data.mjs [login]   (default: the gh user)
+//        node prototype/fetch-data.mjs --external-only   (add external repo details to an existing data.json)
 import { execSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 
 const TOKEN = execSync('gh auth token').toString().trim();
 const H = { Authorization: `bearer ${TOKEN}`, 'User-Agent': 'activity-prototype' };
-const LOGIN = process.argv[2] || (await (await fetch('https://api.github.com/user', { headers: H })).json()).login;
+const EXTERNAL_ONLY = process.argv.includes('--external-only');
+const LOGIN = process.argv.filter(a => !a.startsWith('--'))[2] || (await (await fetch('https://api.github.com/user', { headers: H })).json()).login;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const privateRepos = new Set();
 let dropped = 0;
@@ -29,6 +31,28 @@ async function rest(path) {
   }
 }
 const keep = (repo) => { if (!repo || repo.isPrivate || repo.private) { if (repo) privateRepos.add(repo.nameWithOwner || repo.full_name); dropped++; return false; } return true; };
+
+
+// ---------- details of external repos (description, stars, licence, language) ----------
+async function externalDetails(names) {
+  const out = {};
+  for (let i = 0; i < names.length; i += 25) {
+    const batch = names.slice(i, i + 25);
+    const q = batch.map((n, j) => { const [o, r] = n.split('/'); return `r${j}: repository(owner:${JSON.stringify(o)}, name:${JSON.stringify(r)}) { nameWithOwner isPrivate description stargazerCount licenseInfo { spdxId } primaryLanguage { name } }`; }).join('\n');
+    const r = await fetch('https://api.github.com/graphql', { method: 'POST', headers: H, body: JSON.stringify({ query: `{ ${q} }` }) });
+    const j = await r.json();   // deleted or renamed repos come back null with an error: skip them
+    for (const v of Object.values(j.data || {})) if (v && keep(v)) out[v.nameWithOwner] = v;
+  }
+  return out;
+}
+if (EXTERNAL_ONLY) {
+  const path = new URL('./data.json', import.meta.url), d = JSON.parse(readFileSync(path));
+  const names = [...new Set([...d.items, ...d.commits].map(x => x.repo).filter(n => !n.startsWith(d.profile.login + '/')))];
+  d.externalRepos = await externalDetails(names);
+  const json = JSON.stringify(d);
+  if (json.includes('"isPrivate":true')) { console.error('ABORT: private data survived'); process.exit(1); }
+  writeFileSync(path, json); console.log(`added details for ${Object.keys(d.externalRepos).length} of ${names.length} external repos`); process.exit(0);
+}
 
 // ---------- profile, pins, repos ----------
 const REPO = 'nameWithOwner isPrivate isFork isArchived description createdAt pushedAt stargazerCount parent { nameWithOwner } licenseInfo { spdxId } primaryLanguage { name color }';
@@ -120,8 +144,10 @@ async function searchSlice(from, to) {
 for (const y of profile.contributionsCollection.contributionYears.slice().reverse()) await searchSlice(`${y}-01-01`, `${y}-12-31`);
 console.log(`commits (before dedup): ${commits.length}`);
 
+const externalRepos = await externalDetails([...new Set([...items, ...commits].map(x => x.repo).filter(n => !n.startsWith(LOGIN + '/')))]);
+
 // ---------- safety check, then write ----------
-const out = { generatedAt: new Date().toISOString(), profile: { login: profile.login, createdAt: profile.createdAt, bio: profile.bio, location: profile.location, company: profile.company, orgs }, pins, repos, items, commits, years, lastYear };
+const out = { generatedAt: new Date().toISOString(), profile: { login: profile.login, createdAt: profile.createdAt, bio: profile.bio, location: profile.location, company: profile.company, orgs }, pins, repos, externalRepos, items, commits, years, lastYear };
 const json = JSON.stringify(out);
 const leaks = [...privateRepos].filter(n => n && json.includes(n));
 if (leaks.length || json.includes('"isPrivate":true') || json.includes('"private":true')) { console.error(`ABORT: private data survived (${leaks.length} names)`); process.exit(1); }
