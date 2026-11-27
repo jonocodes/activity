@@ -12,9 +12,10 @@ h1 { font-size: 1.7em; margin: 0 0 4px; } h2 { font-size: 1.15em; margin: 28px 0
 h3 { font-size: .8em; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 18px 0 4px; border-bottom: 1px solid var(--line); padding-bottom: 2px; font-weight: 600; }
 .muted { color: var(--muted); } .small { font-size: .85em; }
 .profile { color: var(--muted); margin: 4px 0 12px; } .profile > span + span::before { content: " · "; }
-.stats { display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 10px 0 14px; }
+.stats { display: flex; flex-wrap: wrap; gap: 10px 22px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 10px 0 14px; }
 .stats .n { font-size: 1.35em; font-weight: 650; display: block; line-height: 1.1; } .stats .l { font-size: .78em; color: var(--muted); }
-.stats .sep { width: 1px; background: var(--line); }
+.stats .nums { display: flex; flex-wrap: wrap; gap: 8px 22px; } .stats .grp + .grp { border-left: 1px solid var(--line); padding-left: 22px; }
+.stats h4 { margin: 0 0 4px; font-size: .7em; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
 .overview { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin: 4px 0 14px; }
 .meter h4, .chart h4 { margin: 0 0 6px; font-size: .8em; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
 .meter .m { display: grid; grid-template-columns: 110px 1fr 44px; gap: 8px; align-items: center; font-size: .85em; padding: 1px 0; }
@@ -57,7 +58,7 @@ details.year { border-top: 1px solid var(--line); padding: 6px 0; } details.year
 .proj.wide { grid-template-columns: 1fr 300px; }
 .badge { font-size: .72em; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--muted); margin-left: 6px; }
 .note { font-size: .8em; color: var(--muted); margin: 6px 0; }
-.kpis { display: flex; gap: 26px; margin: 8px 0 4px; } .kpis .n { font-size: 1.6em; font-weight: 650; display: block; line-height: 1.1; } .kpis .l { font-size: .78em; color: var(--muted); }
+.per-year { border-bottom: 1px solid var(--line); padding-bottom: 10px; margin-bottom: 14px; }
 .axis { display: grid; grid-template-columns: 1fr 300px; margin-top: 8px; }
 svg.tl { width: 100%; max-width: 300px; height: auto; display: block; overflow: visible; }
 .habits { display: grid; grid-template-columns: 1fr 2fr; gap: 28px; }
@@ -68,6 +69,7 @@ footer p { margin: 4px 0; }
 .k-discussion_reply { background: var(--k-discussion_reply); } .k-review { background: var(--k-review); } .k-new_repo { background: var(--k-new_repo); } .k-fork { background: var(--k-fork); }
 .k-issue_comment, .k-commit_comment { background: var(--k-issue_comment); }
 @media (max-width: 760px) {
+  .stats .grp + .grp { border-left: none; padding-left: 0; }
   .overview, .habits, .proj.wide, .axis { grid-template-columns: 1fr; }
   .proj.wide .chart { grid-row: auto; grid-column: 1; margin-top: 6px; } .axis > span { display: none; }
   svg.tl { max-width: none; }

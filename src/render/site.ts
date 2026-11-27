@@ -59,8 +59,8 @@ function profile(m: Model) {
 }
 function stats(m: Model) {
   const s = m.stats, n = (v: number, l: string) => h`<div><span class="n">${v.toLocaleString('en-US')}</span><span class="l">${l}</span></div>`;
-  return h`<div class="stats">${n(s.allTime.commits, 'commits')}${n(s.allTime.prs, 'pull requests')}${n(s.allTime.issues, 'issues')}${n(s.allTime.discussions, 'discussions')}${n(s.allTime.reposCreated, 'repos created')}
-<div class="sep"></div>${n(s.last12.contributions, 'contributions, last 12 months')}${n(s.last12.activeDays, 'active days, last 12 months')}</div>`;
+  return h`<div class="stats"><div class="grp"><h4>All time</h4><div class="nums">${n(s.allTime.commits, 'commits')}${n(s.allTime.prs, 'pull requests')}${n(s.allTime.issues, 'issues')}${n(s.allTime.discussions, 'discussions')}${n(s.allTime.reposCreated, 'repos created')}${n(s.allTime.reposContributedTo, 'repos contributed to')}</div></div>
+<div class="grp"><h4>Last 12 months</h4><div class="nums">${n(s.last12.contributions, 'contributions')}${n(s.last12.activeDays, 'active days')}</div></div></div>`;
 }
 const meterList = (title: string, entries: [string, number, string][]) => {
   const max = Math.max(1, ...entries.map(e => e[1]));
@@ -156,7 +156,6 @@ function contributingPanel(m: Model) {
   const axis = c.axis!, from = Date.parse(axis.from), to = Date.parse(axis.to);
   return h`<section id="contributing" data-panel>
 <h2>Contributing to</h2>
-<div class="kpis"><div><span class="n">${c.repos}</span><span class="l">repos</span></div><div><span class="n">${c.owners}</span><span class="l">owners and orgs</span></div></div>
 ${perYear(c.perYear)}
 <div class="axis"><span></span>${axisSvg(from, to)}</div>
 <div class="repos" data-sortable>${c.rows.map(r => repoRow(m, r, 'breadth', [from, to]))}</div>
@@ -194,7 +193,7 @@ function axisSvg(from: number, to: number, w = 300) {
 function perYear(years: { year: number; repos: number }[]) {
   if (!years.length) return null;
   const w = 868, hgt = 90, bw = w / years.length - 4, max = Math.max(1, ...years.map(y => y.repos));
-  return h`<div class="chart"><h4>Other people's repos worked in, per year</h4>${raw(`<svg viewBox="0 0 ${w} ${hgt}" width="100%" role="img">${years.map((y, i) => { const x = i * (bw + 4), bh = y.repos ? Math.max(3, y.repos / max * (hgt - 30)) : 0;
+  return h`<div class="chart per-year"><h4>Other people's repos worked in, per year</h4>${raw(`<svg viewBox="0 0 ${w} ${hgt}" width="100%" role="img">${years.map((y, i) => { const x = i * (bw + 4), bh = y.repos ? Math.max(3, y.repos / max * (hgt - 30)) : 0;
     return (y.repos ? `<rect x="${x.toFixed(1)}" y="${(hgt - 16 - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="3" fill="var(--viz)"><title>${y.year}: ${y.repos} repos</title></rect><text x="${(x + bw / 2).toFixed(1)}" y="${(hgt - 20 - bh).toFixed(1)}" font-size="10" text-anchor="middle" fill="var(--muted)">${y.repos}</text>` : '')
       + `<text x="${(x + bw / 2).toFixed(1)}" y="${hgt - 3}" font-size="10" text-anchor="middle" fill="var(--muted)">${String(y.year).slice(2)}</text>`; }).join('')}</svg>`)}</div>`;
 }

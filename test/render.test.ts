@@ -39,7 +39,7 @@ test("dates are plain, in the owner's time zone, inside <time> for the browser t
   assert.ok(!/today|yesterday/i.test(html));
   assert.match(html, /Dates are in America\/Los_Angeles/);
   assert.match(html, /<p class="profile"><span>\d+ years of open source<\/span><span><a href="https:\/\/github.com\/fixture-owner\?tab=achievements">achievements<\/a><\/span><\/p>/, 'the profile line is only the years and achievements');
-  assert.match(html, /active days, last 12 months/);
+  assert.match(html, /<h4>Last 12 months<\/h4><div class="nums">.*<span class="l">active days<\/span>/);
   assert.ok(!/streak|on GitHub since|first contribution|private/i.test(html), 'no streaks, account date, first-year box or private count');
 });
 
@@ -93,6 +93,14 @@ test('the footer says when the data was fetched, and links the repo the page is 
     assert.match(footer(withRepo[page]), /Made with <a href="https:\/\/github.com\/someone\/activity">someone\/activity<\/a>/, `${page}: links the source repo`);
   }
   assert.ok(!footer(site()['index.html']).includes('Made with'), 'no link when the repo is unknown');
+});
+
+test('repos contributed to is in the stats strip, not in the Contributing to panel', () => {
+  const html = site()['index.html'];
+  const strip = /<div class="stats">[\s\S]*?<\/div>\n<div class="overview">/.exec(html)![0];
+  assert.match(strip, /<h4>All time<\/h4>[\s\S]*<span class="n">1<\/span><span class="l">repos contributed to<\/span>[\s\S]*<h4>Last 12 months<\/h4>/);
+  assert.ok(!html.includes('owners and orgs'));
+  assert.match(html, /<div class="chart per-year">[\s\S]*?<\/div>\n<div class="axis">/, 'the per-year chart, closed off by its line, then the rows\' axis');
 });
 
 test('the main page (snapshot)', (t) => {

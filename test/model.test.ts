@@ -99,15 +99,16 @@ test('favorites come first in the order given, and appear only once', () => {
   assert.equal(unknown.skippedFavorites, 1);
 });
 
-test('Contributing to: external repos newest first, with breadth numbers and repos per year', () => {
+test('Contributing to: external repos newest first, with repos per year; their count is an all-time stat', () => {
   const db = emptyDb(); own(db, 'tool');
   item(db, 'issue', 'org1/a', '2024-05-01T10:00:00Z'); item(db, 'pr', 'org1/b', '2026-11-01T10:00:00Z');
   item(db, 'discussion_reply', 'org2/c', '2026-06-01T10:00:00Z'); item(db, 'pr', `${OWNER}/tool`, '2026-11-02T10:00:00Z');
   item(db, 'issue_comment', 'org3/only-commented', '2026-11-03T10:00:00Z');
   const c = buildModel(db, settings(), NOW).contributing;
   assert.deepEqual(c.rows.map(r => r.repo), ['org1/b', 'org2/c', 'org1/a']);
-  assert.deepEqual({ repos: c.repos, owners: c.owners, firstYear: c.firstYear }, { repos: 3, owners: 2, firstYear: 2024 });
+  assert.equal(c.firstYear, 2024);
   assert.deepEqual(c.perYear, [{ year: 2024, repos: 1 }, { year: 2025, repos: 0 }, { year: 2026, repos: 2 }]);
+  assert.equal(buildModel(db, settings(), NOW).stats.allTime.reposContributedTo, 3, 'commented-only repos are not counted');
   assert.equal(c.rows.find(r => r.repo === 'org2/c')!.counts.discussions, 1, 'discussion replies count as discussions');
 });
 
@@ -128,7 +129,7 @@ test('stats: all-time counts, the last 12 months, active days, and the private c
   // active days: days in the last 12 months with any contribution
   days(db, ['2026-11-10', 1], ['2026-11-11', 2], ['2026-11-12', 1], ['2026-11-13', 0], ['2026-11-23', 4], ['2026-11-24', 1], ['2026-11-25', 0]);
   const s = buildModel(db, settings(), NOW).stats;
-  assert.deepEqual(s.allTime, { commits: 2, prs: 1, issues: 1, discussions: 1, reposCreated: 1 });
+  assert.deepEqual(s.allTime, { commits: 2, prs: 1, issues: 1, discussions: 1, reposCreated: 1, reposContributedTo: 1 });
   assert.deepEqual(s.last12, { contributions: 321, activeDays: 5 });
   assert.ok(!('privateLast12' in s), 'the anonymous private count is not shown');
 });

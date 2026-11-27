@@ -40,7 +40,7 @@ export interface Model {
   /** yearsActive: whole years from the owner's earliest dated work (which can predate the account: imported history) to now. */
   profile: { login: string; bio: string | null; location: string | null; company: string | null; yearsActive: number; orgs: string[]; achievementsUrl: string };
   stats: {
-    allTime: { commits: number; prs: number; issues: number; discussions: number; reposCreated: number };
+    allTime: { commits: number; prs: number; issues: number; discussions: number; reposCreated: number; reposContributedTo: number };
     /** activeDays: days in the last 12 months with any contribution. */
     last12: { contributions: number; activeDays: number };
   };
@@ -53,7 +53,7 @@ export interface Model {
   feed: { weeks: Week[] };
   years: YearSection[];
   projects: { favorites: RepoRow[]; mine: RepoRow[]; idleForks: number; /** Favorites that aren't a known public repo (unknown, deleted or private): left out. */ skippedFavorites: number };
-  contributing: { repos: number; owners: number; firstYear: number | null; perYear: { year: number; repos: number }[]; axis: { from: string; to: string } | null; rows: RepoRow[] };
+  contributing: { firstYear: number | null; perYear: { year: number; repos: number }[]; axis: { from: string; to: string } | null; rows: RepoRow[] };
 }
 
 const COMMENTS: Kind[] = ['issue_comment', 'commit_comment'];
@@ -177,7 +177,7 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
     profile: { login: prof?.login ?? owner, bio: prof?.bio ?? null, location: prof?.location ?? null, company: prof?.company ?? null, yearsActive,
       orgs: q<{ login: string }>('SELECT login FROM orgs ORDER BY login').map(r => r.login), achievementsUrl: `https://github.com/${owner}?tab=achievements` },
     stats: {
-      allTime: { commits: count('commit'), prs: count('pr'), issues: count('issue'), discussions: count('discussion'), reposCreated: count('new_repo') },
+      allTime: { commits: count('commit'), prs: count('pr'), issues: count('issue'), discussions: count('discussion'), reposCreated: count('new_repo'), reposContributedTo: external.length },
       last12: { contributions: Number(meta.contributions_last_12_months ?? lastYearDays.reduce((s, d) => s + d.count, 0)), activeDays },
     },
     overview: {
@@ -190,7 +190,7 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
     feed: { weeks: weeksOf(recent, day) },
     years,
     projects: { favorites, mine, idleForks, skippedFavorites: settings.favorites.length - favorites.length },
-    contributing: { repos: external.length, owners: new Set(external.map(r => r.repo.split('/')[0])).size, firstYear, perYear,
+    contributing: { firstYear, perYear,
       axis: earliest ? { from: earliest, to: now.toISOString() } : null, rows: external },
   };
 }

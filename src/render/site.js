@@ -88,7 +88,8 @@
       bar.append(b);
       return b;
     });
-    list.before(bar);
+    const axis = list.previousElementSibling?.classList.contains('axis') ? list.previousElementSibling : null;
+    (axis ?? list).before(bar);   // Sort first, then the timeline axis right above the rows it belongs to
   }
 
   // ---------- heatmap tooltips: on hover with a mouse, on tap with a finger ----------

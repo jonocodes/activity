@@ -68,7 +68,8 @@ test('the render model of the real recorded account is consistent', { skip }, as
   assert.equal(sum('commits'), m.stats.allTime.commits, 'every commit is counted in exactly one row');
   assert.equal(sum('prs'), m.stats.allTime.prs, 'every pull request is counted in exactly one row');
   assert.equal(new Set(rows.map(r => r.repo)).size, rows.length, 'no repo has two rows');
-  assert.ok(m.contributing.repos > 0 && m.projects.mine.length > 0);
+  assert.ok(m.contributing.rows.length > 0 && m.projects.mine.length > 0);
+  assert.equal(m.stats.allTime.reposContributedTo, m.contributing.rows.length, "the stat counts the Contributing to rows");
   const cutoff = new Date(now.getTime() - 365 * 86_400_000).toISOString();
   assert.ok(m.feed.weeks.flatMap(w => w.rows).every(r => r.at >= cutoff), 'the feed holds the last 12 months');
   assert.deepEqual(m.years.map(y => y.year), [...m.years.map(y => y.year)].sort((a, b) => b - a));
