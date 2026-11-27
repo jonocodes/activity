@@ -121,15 +121,15 @@ test('Projects rows carry commits per month for the last 24 months', () => {
   assert.equal(row.monthly.reduce((a, b) => a + b, 0), 3, 'older commits are outside the window');
 });
 
-test('stats: all-time counts, the last 12 months, streaks, and the private count', () => {
+test('stats: all-time counts, the last 12 months, active days, and the private count', () => {
   const db = emptyDb(); own(db, 'tool');
   commit(db, `${OWNER}/tool`, '2026-11-01T10:00:00Z'); commit(db, `${OWNER}/tool`, '2019-11-01T10:00:00Z');
   item(db, 'pr', 'a/b', '2026-11-01T10:00:00Z'); item(db, 'issue', 'a/b', '2020-11-01T10:00:00Z'); item(db, 'discussion', 'a/b', '2021-11-01T10:00:00Z'); item(db, 'new_repo', `${OWNER}/tool`, '2020-01-01T10:00:00Z');
-  // three days before today, a gap, then two days; today (Nov 25) has nothing yet, which doesn't break the streak
+  // active days: days in the last 12 months with any contribution
   days(db, ['2026-11-10', 1], ['2026-11-11', 2], ['2026-11-12', 1], ['2026-11-13', 0], ['2026-11-23', 4], ['2026-11-24', 1], ['2026-11-25', 0]);
   const s = buildModel(db, settings(), NOW).stats;
   assert.deepEqual(s.allTime, { commits: 2, prs: 1, issues: 1, discussions: 1, reposCreated: 1 });
-  assert.deepEqual(s.last12, { contributions: 321, currentStreak: 2, longestStreak: 3 });
+  assert.deepEqual(s.last12, { contributions: 321, activeDays: 5 });
   assert.equal(s.privateLast12, 12);
 });
 
@@ -151,7 +151,7 @@ test('profile, heatmap and chip counts', () => {
   days(db, ['2025-11-25', 9], ['2025-11-26', 1], ['2026-11-25', 2]);
   item(db, 'issue', 'a/b', '2026-11-01T10:00:00Z'); item(db, 'issue', 'a/b', '2010-11-01T10:00:00Z');
   const m = buildModel(db, settings(), NOW);
-  assert.deepEqual(m.profile, { login: OWNER, bio: 'Builds small tools', location: 'Lisbon', company: null, since: 2015, orgs: ['tidy-org'], achievementsUrl: `https://github.com/${OWNER}?tab=achievements` });
+  assert.deepEqual(m.profile, { login: OWNER, bio: 'Builds small tools', location: 'Lisbon', company: null, yearsActive: 16, orgs: ['tidy-org'], achievementsUrl: `https://github.com/${OWNER}?tab=achievements` });
   assert.deepEqual(m.heatmap.map(d => d.date), ['2025-11-26', '2026-11-25'], 'the last 12 months only');
   assert.equal(m.kindCounts.issue, 2, 'chips count every year');
 });
@@ -165,4 +165,12 @@ test("habits: the owner's busiest weekdays and hours over the last 12 months, in
   assert.deepEqual(h.weekdays, [2, 0, 0, 0, 0, 0, 0]);
   assert.equal(h.hours[21], 1); assert.equal(h.hours[22], 1);
   assert.deepEqual(buildModel(db, settings(), NOW).habits.weekdays, [0, 2, 0, 0, 0, 0, 0]);
+});
+
+test('years active count from the earliest dated work, even from before the account existed', () => {
+  const db = emptyDb(); own(db, 'old');   // the account was created in 2015
+  commit(db, `${OWNER}/old`, '2009-06-01T10:00:00Z');   // history imported from before then
+  item(db, 'issue', 'a/b', '2020-01-01T10:00:00Z');
+  assert.equal(buildModel(db, settings(), NOW).profile.yearsActive, 17, 'Jun 2009 to Nov 2026 is 17 whole years');
+  assert.equal(buildModel(emptyDb(), settings(), NOW).profile.yearsActive, 0, 'no work yet');
 });

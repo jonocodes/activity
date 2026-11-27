@@ -48,8 +48,12 @@ How the page decides what to show. The reasons behind each rule are in the Decis
 
 **Feed and dates**
 - Which day an item falls on is decided by your time zone (`ACTIVITY_TIMEZONE`). Items of the same kind, in the same repo, on the same day become one expandable row: commits from 2, everything else from 3.
-- Everything is stored in UTC. Days, groups, weeks and streaks follow your time zone, because the page is built once for every visitor. The page never says "today" or "yesterday": dates are plain, items under a week old show their age ("5 h ago"), and hovering a date shows its exact time in the visitor's own time zone.
+- Everything is stored in UTC. Days, groups, weeks and active days follow your time zone, because the page is built once for every visitor. The page never says "today" or "yesterday": dates are plain, items under a week old show their age ("5 h ago"), and hovering a date shows its exact time in the visitor's own time zone.
 - Issue and commit comments are collected but hidden unless `ACTIVITY_FEED_COMMENTS` is on.
+
+**Profile and stats**
+- "N years of open source" counts whole years from your earliest dated work, which can be older than your GitHub account (imported history keeps its dates).
+- "Active days" is how many days in the last 12 months had any contribution, on GitHub's own calendar.
 
 **When something goes wrong**
 - A run fails, and doesn't deploy, on an API error that persists after retries, a GraphQL error, or a commit search reporting incomplete results. A deleted repo is simply skipped.

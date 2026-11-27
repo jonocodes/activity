@@ -38,6 +38,9 @@ test("dates are plain, in the owner's time zone, inside <time> for the browser t
   assert.match(html, /2 commits/);
   assert.ok(!/today|yesterday/i.test(html));
   assert.match(html, /Dates are in America\/Los_Angeles/);
+  assert.match(html, /<span>\d+ years of open source<\/span>/);
+  assert.match(html, /active days, last 12 months/);
+  assert.ok(!/streak|on GitHub since/.test(html));
 });
 
 test('older years are links to their own pages, which load in place with JavaScript', () => {

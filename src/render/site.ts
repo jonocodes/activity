@@ -56,14 +56,14 @@ ${on('contributing') ? contributingPanel(m) : null}`;
 function profile(m: Model) {
   const p = m.profile;
   return h`<p class="profile">${[
-    p.bio && h`<span>${p.bio}</span>`, h`<span>on GitHub since ${p.since}</span>`, p.location && h`<span>${p.location}</span>`, p.company && h`<span>${p.company}</span>`,
+    p.bio && h`<span>${p.bio}</span>`, p.yearsActive > 0 && h`<span>${p.yearsActive} year${p.yearsActive === 1 ? '' : 's'} of open source</span>`, p.location && h`<span>${p.location}</span>`, p.company && h`<span>${p.company}</span>`,
     p.orgs.length > 0 && h`<span>orgs: ${p.orgs.map((o, i) => h`${i ? ', ' : ''}<a href="https://github.com/${o}">${o}</a>`)}</span>`,
     h`<span><a href="${p.achievementsUrl}">achievements</a></span>`]}</p>`;
 }
 function stats(m: Model) {
   const s = m.stats, n = (v: number, l: string) => h`<div><span class="n">${v.toLocaleString('en-US')}</span><span class="l">${l}</span></div>`;
   return h`<div class="stats">${n(s.allTime.commits, 'commits')}${n(s.allTime.prs, 'pull requests')}${n(s.allTime.issues, 'issues')}${n(s.allTime.discussions, 'discussions')}${n(s.allTime.reposCreated, 'repos created')}
-<div class="sep"></div>${n(s.last12.contributions, 'contributions, last 12 months')}${n(s.last12.currentStreak, 'day streak now')}${n(s.last12.longestStreak, 'longest streak')}${s.privateLast12 ? n(s.privateLast12, 'private, last 12 months') : null}</div>`;
+<div class="sep"></div>${n(s.last12.contributions, 'contributions, last 12 months')}${n(s.last12.activeDays, 'active days, last 12 months')}${s.privateLast12 ? n(s.privateLast12, 'private, last 12 months') : null}</div>`;
 }
 const meterList = (title: string, entries: [string, number, string][]) => {
   const max = Math.max(1, ...entries.map(e => e[1]));

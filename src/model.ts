@@ -31,10 +31,12 @@ export interface YearSection {
 }
 export interface Model {
   owner: string; title: string; timezone: string; builtAt: string; sections: Section[];
-  profile: { login: string; bio: string | null; location: string | null; company: string | null; since: number; orgs: string[]; achievementsUrl: string };
+  /** yearsActive: whole years from the owner's earliest dated work (which can predate the account: imported history) to now. */
+  profile: { login: string; bio: string | null; location: string | null; company: string | null; yearsActive: number; orgs: string[]; achievementsUrl: string };
   stats: {
     allTime: { commits: number; prs: number; issues: number; discussions: number; reposCreated: number };
-    last12: { contributions: number; currentStreak: number; longestStreak: number };
+    /** activeDays: days in the last 12 months with any contribution. */
+    last12: { contributions: number; activeDays: number };
     /** GitHub's anonymous count of private contributions, when it gives one. */
     privateLast12: number | null;
   };
@@ -138,12 +140,9 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
 
   // ---------- stats ----------
   const lastYearDays = calendar.filter(d => d.date > shiftDay(today, -365) && d.date <= today);
-  let longest = 0, run = 0;
-  for (const d of lastYearDays) { run = d.count ? run + 1 : 0; longest = Math.max(longest, run); }
-  let current = 0;
-  { const byDate = new Map(lastYearDays.map(d => [d.date, d.count]));
-    let d = (byDate.get(today) ?? 0) ? today : shiftDay(today, -1);   // nothing yet today doesn't break the streak
-    while (byDate.get(d)) { current++; d = shiftDay(d, -1); } }
+  const activeDays = lastYearDays.filter(d => d.count > 0).length;
+  const firstWork = [...all.map(i => i.at), ...calendar.filter(d => d.count > 0).map(d => `${d.date}T00:00:00Z`)].reduce<string | null>((m, t) => (!m || t < m ? t : m), null);
+  const yearsActive = firstWork ? wholeYears(firstWork, now) : 0;
   const count = (k: Kind) => all.filter(i => i.kind === k).length;
   const restricted = Number(meta.restricted_last_12_months ?? 0);
 
@@ -169,11 +168,11 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
 
   return {
     owner, title: settings.title, timezone: tz, builtAt: now.toISOString(), sections: settings.sections,
-    profile: { login: prof?.login ?? owner, bio: prof?.bio ?? null, location: prof?.location ?? null, company: prof?.company ?? null, since: prof ? new Date(prof.created_at).getUTCFullYear() : 0,
+    profile: { login: prof?.login ?? owner, bio: prof?.bio ?? null, location: prof?.location ?? null, company: prof?.company ?? null, yearsActive,
       orgs: q<{ login: string }>('SELECT login FROM orgs ORDER BY login').map(r => r.login), achievementsUrl: `https://github.com/${owner}?tab=achievements` },
     stats: {
       allTime: { commits: count('commit'), prs: count('pr'), issues: count('issue'), discussions: count('discussion'), reposCreated: count('new_repo') },
-      last12: { contributions: Number(meta.contributions_last_12_months ?? lastYearDays.reduce((s, d) => s + d.count, 0)), currentStreak: current, longestStreak: longest },
+      last12: { contributions: Number(meta.contributions_last_12_months ?? lastYearDays.reduce((s, d) => s + d.count, 0)), activeDays },
       privateLast12: restricted > 0 ? restricted : null,
     },
     overview: {
@@ -208,4 +207,11 @@ function weeksOf(list: FeedItem[], day: (iso: string) => string): Week[] {
 }
 
 const newestFirst = (a: { at: string }, b: { at: string }) => b.at.localeCompare(a.at);
+/** Whole years between two moments, counting a year only once its anniversary has passed. */
+function wholeYears(fromIso: string, to: Date) {
+  const f = new Date(fromIso);
+  let y = to.getUTCFullYear() - f.getUTCFullYear();
+  if (to.getUTCMonth() < f.getUTCMonth() || (to.getUTCMonth() === f.getUTCMonth() && to.getUTCDate() < f.getUTCDate())) y--;
+  return Math.max(0, y);
+}
 const shiftDay = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);

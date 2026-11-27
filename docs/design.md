@@ -38,7 +38,8 @@ Designed 2026-11-23 to 2026-11-24, before any code, and revised on 2026-11-24 af
 | **Commits in own repos come from walking their default branches; search covers the rest** (2026-11-25) | Found with the prototype: commit search returned no commits at all in the author's own forks, because GitHub search leaves most forks out. The collector already walks each own repo's default branch (`history(author:)`) for line counts, so that walk is also the commit source for own repos, forks included. Commit search stays the source for other people's repos |
 | **An overview of licences and languages as ranked bars** (2026-11-25, revised after the prototype) | Seen on real data, one-colour horizontal bars (largest first, figure at the end) read at a glance; a pie can't compare small slices. Licences count own repos that aren't forks; languages are weighted by the owner's commits (each repo's main language), top 6 plus Other. One colour, not GitHub's language colours. Commits still lead the stats strip |
 | **Licences: the overview bars plus a badge per own repo** (2026-11-25) | Cheap (one field per repo) and says something about the owner's work. Only licences in use are counted; unlicensed repos get no badge and no count (27 of the author's 55 have none) |
-| **A short profile summary** (2026-11-25) | Bio, "on GitHub since", location, company if set, public orgs, achievements link. No avatar, name, followers or website for now |
+| **A short profile summary** (2026-11-25, revised 2026-11-27) | Bio, "N years of open source", location, company if set, public orgs, achievements link. No avatar, name, followers or website for now. The years count from the owner's earliest dated work, not the account date: the author's account dates from 2012, but imported history goes back to 2009, and the longer span matters more. Counting years reads better than a start year, and doesn't need the word GitHub |
+| **Active days instead of streaks** (2026-11-27) | A streak mostly measures whether the owner happened to touch GitHub yesterday. Days with any contribution in the last 12 months (297 of 365 for the author) say how consistently they work, without one quiet day resetting it |
 | **Older years open with a summary** (2026-11-25) | The calendar is fetched a year at a time anyway. The top heatmap shows the last 12 months; each collapsed older year opens with that year's totals (contributions, commits, PRs, issues, discussions, new repos), its heatmap and its most active repos, then its items. Taken from the prototype's year-by-year variant, which was otherwise dropped; expect to iterate on it |
 | **Depth on Projects, breadth on Contributing to** (2026-11-25, from the prototype) | Sparklines undersold sparse work: one PR drew a flat line with a blip. Projects rows show commits per month over the last 24 months as columns (a quiet month draws only the baseline). Contributing to leads with the breadth: repos, owners and orgs, first year, and a chart of external repos worked in per year; each row has a dot per item on a shared timeline. A dot's hover text is only the kind and date: titles stay on the year pages, which keeps hundreds of old titles off the main page |
 | **Details for external repos** (2026-11-25) | Description, stars, licence and main language for every external repo on the page, batched about 25 to a GraphQL query (about 6 calls for the author's 138). The languages bars need them too |
@@ -140,11 +141,11 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
 ### Generated site
 
 - **`index.html`** holds:
-  - the profile summary: bio, "on GitHub since <year>", location, company if set, public orgs, and a link to achievements;
+  - the profile summary: bio, "N years of open source" (from the earliest dated work), location, company if set, public orgs, and a link to achievements;
   - the overview: two ranked-bar lists side by side, licences of own repos and languages by the owner's commits;
   - the stats strip, led by commits:
     - all-time: commits, pull requests, issues, discussions, repos created;
-    - last 12 months: contributions, current streak, longest streak (from GitHub's calendar; a day with nothing yet doesn't break the current streak until it's over);
+    - last 12 months: contributions, and active days (days with any contribution, from GitHub's calendar);
     - the anonymous private contributions count, if GitHub returns it;
   - the heatmap of the last 12 months;
   - three tabs:
