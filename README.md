@@ -15,12 +15,15 @@ GitHub spreads this across the profile graph, the repositories tab, search and p
 - The token can only read public data, so nothing private can end up on the page or in the public Actions logs.
 - Settings are Actions variables in your fork's settings, not files in the repo, and all of them are optional. You never edit code, so "Sync fork" keeps working.
 
-## Planned setup for a fork
+## Setup for a fork
 
-1. Fork this repo and enable Actions in your fork's Actions tab.
-2. Create a fine-grained token with **Public repositories (read-only)** access, no extra permissions, and an expiry of one year or less (see [Token](docs/design.md#token)). Add it as the `GH_PAT` secret.
-3. Optional: set any of the `ACTIVITY_*` variables (Settings → Secrets and variables → Actions → Variables). They're listed in [Settings](docs/design.md#settings) and [.env.example](.env.example).
-4. Enable GitHub Pages with "GitHub Actions" as the source.
+1. **Fork** this repo, then open your fork's **Actions** tab and enable workflows (forks start with them off).
+2. **Token:** create a fine-grained token (GitHub → Settings → Developer settings → Fine-grained tokens) with repository access **Public repositories (read-only)**, no other permissions, and an expiry of a year or less. Add it to your fork as the `GH_PAT` secret (Settings → Secrets and variables → Actions → Secrets).
+3. **Pages:** Settings → Pages → Source: **GitHub Actions**.
+4. **Optional settings** as Actions variables (Settings → Secrets and variables → Actions → Variables), for example `ACTIVITY_TIMEZONE`. They're listed in [Settings](docs/design.md#settings) and [.env.example](.env.example); none are required.
+5. **First run:** Actions → build → Run workflow. It takes about 6 minutes, then the page is at `https://<you>.github.io/<repo>/`. After that it rebuilds every hour.
+
+**When a run fails** it doesn't deploy, so the page keeps the last good version, and GitHub emails you. A run also refuses to deploy if the number of items fell by more than 10% since the live version; if that drop is real (you deleted repos, say), run the workflow by hand with **force** ticked. Renew the token before it expires; GitHub emails you a few days ahead.
 
 ## Methodology
 
@@ -67,7 +70,7 @@ Copy `.env.example` to `.env` and set `GH_PAT` and `ACTIVITY_USER` to run agains
 - `just update-snapshots` accepts an intended change to the rendered page's snapshot;
 - `just record-fixtures` does the same and saves every API exchange to `test/fixtures/recorded/github.json.gz`, which the tests replay. It refuses to save if any response holds private data, so use the public-only token.
 
-**Status:** build steps 1–4 are done: the skeleton, the GitHub collector (`src/github/`), settings and the render model (`src/settings.ts`, `src/model.ts`), and the renderer (`src/render/`). Next is the workflow that runs it hourly and deploys to Pages (build step 5).
+**Status:** build steps 1–5 are built: the skeleton, the GitHub collector (`src/github/`), settings and the render model (`src/settings.ts`, `src/model.ts`), the renderer (`src/render/`), and the workflows (`.github/workflows/`). The author's page goes live once Pages and the `GH_PAT` secret are set up.
 
 ## Docs
 

@@ -1,0 +1,68 @@
+# Builds the activity page and deploys it to GitHub Pages, hourly and on demand. See docs/design.md, "Workflow".
+# Needs: the GH_PAT secret (public repositories, read-only, expiry a year or less) and Pages set to "GitHub Actions".
+# Settings are optional Actions variables (ACTIVITY_*), passed in as one JSON.
+name: build
+
+on:
+  schedule:
+    - cron: '23 * * * *'   # hourly; avoids :00, which GitHub delays at busy times
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Deploy even if the number of items fell by more than 10%
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: activity-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write   # the keep-alive step re-enables this workflow
+    env:
+      GH_PAT: ${{ secrets.GH_PAT }}
+      ACTIVITY_VARS: ${{ toJSON(vars) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - id: pages
+        uses: actions/configure-pages@v6
+      - name: Collect public activity from GitHub
+        run: node src/cli/collect.ts
+      - name: Render the site
+        run: node src/cli/render.ts
+      - name: Refuse to deploy a much smaller page
+        run: node src/cli/guard.ts
+        env:
+          SITE_URL: ${{ steps.pages.outputs.base_url }}
+          FORCE: ${{ inputs.force || 'false' }}
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+      - name: Keep the schedule alive
+        # GitHub turns off scheduled workflows in a public repo after 60 days without repo activity; runs never commit.
+        run: gh workflow enable build.yml --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5

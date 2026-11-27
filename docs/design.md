@@ -176,29 +176,15 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
 
 ## Workflow
 
-```yaml
-on:
-  schedule: [{ cron: '23 * * * *' }]   # hourly; avoid :00, which GitHub delays at busy times
-  workflow_dispatch: {}
-permissions: { contents: read, pages: write, id-token: write, actions: write }   # actions: write for the keep-alive
-concurrency: { group: activity, cancel-in-progress: false }   # one run at a time (one writer of state.db, once there's a store)
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    environment: github-pages
-    env:
-      GH_PAT: ${{ secrets.GH_PAT }}
-      ACTIVITY_VARS: ${{ toJSON(vars) }}     # every Actions variable; the code reads the ACTIVITY_* ones
-    steps:
-      - uses: actions/checkout@v6            # pin current major versions when building
-      - uses: actions/setup-node@v5
-        with: { node-version: 24 }
-      - run: npm ci
-      - run: node src/collect.ts && node src/render.ts
-      - run: gh workflow enable build.yml    # keep-alive
-        env: { GH_TOKEN: '${{ github.token }}' }
-      # then actions/upload-pages-artifact + actions/deploy-pages with dist/
-```
+Built in `.github/workflows/build.yml` (2026-11-27):
+
+- **Triggers:** hourly at :23 (GitHub delays :00 at busy times), and by hand (`workflow_dispatch`) with a `force` option for the shrink guard. One run at a time.
+- **build job** (`contents: read`, `actions: write`): checkout, Node 24, `configure-pages` (for the site URL), then `src/cli/collect.ts`, `src/cli/render.ts` and `src/cli/guard.ts`, upload `dist/` as the Pages artifact, and re-enable the workflow (the keep-alive). The code uses only Node built-ins, so there's no `npm ci`. Any failure stops the job, so nothing is deployed.
+- **deploy job** (`pages: write`, `id-token: write`, environment `github-pages`): `deploy-pages`.
+- **Env:** `GH_PAT` from secrets; `ACTIVITY_VARS` is `toJSON(vars)`, every repo variable at once.
+- **Action versions** (checked 2026-11-27, all on Node 24, which GitHub now requires): checkout v7, setup-node v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5.
+
+`.github/workflows/test.yml` runs the offline tests on every push and pull request. Both workflows pass `actionlint`.
 
 ### When a run fails
 
@@ -272,7 +258,7 @@ Each step ends with tests passing and the README updated.
 2. **GitHub collector into SQLite** (done 2026-11-26), driven by recorded fixtures: profile, public orgs, repos, the GraphQL connections, `contributionsCollection` by year, commit search slices, line counts. Drops private items. Confirms the public-only token works for every query.
 3. **Settings from env vars,** validated; a render model; the privacy test (done 2026-11-26). The render model (`src/model.ts`) is a pure function of (database, settings, now) holding every display rule; the renderer only turns it into HTML.
 4. **Renderer** (done 2026-11-27): `src/render/` turns the model into `dist/`: `index.html` (last 12 months), `<year>/index.html` per older year, shared `site.css` and `site.js`, and `summary.json` (counts per kind, for the shrink guard). Every value from GitHub is escaped by the HTML builder by default. The page works without JavaScript (tabs are jump links, years are links, dates are plain); `site.js` adds tabs, filter chips, "in feed" per repo, ages, and loading a year in place. Snapshot-tested; the privacy test covers every file. Measured on the author's data: `index.html` about 1 MB raw, 155 KB compressed.
-5. **Workflow:** scheduled Action deploying to Pages, with the keep-alive, the failure rules and the shrink guard.
+5. **Workflow** (built 2026-11-27; live once Pages, the `GH_PAT` secret and the first run are done): scheduled Action deploying to Pages, with the keep-alive, the failure rules and the shrink guard (`src/guard.ts`).
 6. **Later:**
    - [state store](#later-the-state-store): incremental fetching, the events archive, `gone_at`;
    - [private repos](#future-private-repos);
