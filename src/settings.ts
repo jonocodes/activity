@@ -11,6 +11,8 @@ export interface Settings {
   favorites: string[];
   sections: Section[];
   feedComments: boolean;
+  /** owner/repo this page is built from, linked in the footer; GITHUB_REPOSITORY in Actions */
+  sourceRepo: string | null;
 }
 
 export class SettingsError extends Error {
@@ -54,8 +56,11 @@ export function loadSettings(env: Record<string, string | undefined>): Settings 
   const commentsRaw = get('ACTIVITY_FEED_COMMENTS') ?? 'false';
   if (!/^(true|false)$/i.test(commentsRaw)) problems.push(`ACTIVITY_FEED_COMMENTS "${commentsRaw}" is not true or false`);
 
+  const sourceRepo = env.GITHUB_REPOSITORY?.trim() || null;
+  if (sourceRepo && !/^[\w.-]+\/[\w.-]+$/.test(sourceRepo)) problems.push(`GITHUB_REPOSITORY "${sourceRepo}" is not owner/repo`);
+
   if (problems.length) throw new SettingsError(problems);
-  return { user: user!, title: get('ACTIVITY_TITLE') ?? `${user} on GitHub`, timezone, favorites, sections: sections as Section[], feedComments: /^true$/i.test(commentsRaw) };
+  return { user: user!, title: get('ACTIVITY_TITLE') ?? `${user} on GitHub`, timezone, favorites, sections: sections as Section[], feedComments: /^true$/i.test(commentsRaw), sourceRepo };
 }
 
 const list = (v: string | undefined) => (v ?? '').split(',').map(s => s.trim()).filter(Boolean);

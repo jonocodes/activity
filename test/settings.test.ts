@@ -8,7 +8,7 @@ test('every setting has a default; the owner defaults to the repo owner', () => 
   const s = loadSettings({ GITHUB_REPOSITORY_OWNER: 'octo' });
   assert.deepEqual(s, {
     user: 'octo', title: 'octo on GitHub', timezone: 'UTC', favorites: [],
-    sections: SECTIONS.filter(x => x !== 'habits'), feedComments: false,
+    sections: SECTIONS.filter(x => x !== 'habits'), feedComments: false, sourceRepo: null,
   });
 });
 
@@ -17,7 +17,12 @@ test('settings come from ACTIVITY_* env vars', () => {
     ACTIVITY_USER: 'someone', ACTIVITY_TITLE: 'My work', ACTIVITY_TIMEZONE: 'America/Los_Angeles',
     ACTIVITY_FAVORITES: 'someone/tool, other/lib', ACTIVITY_SECTIONS: 'stats,feed', ACTIVITY_FEED_COMMENTS: 'true',
   });
-  assert.deepEqual(s, { user: 'someone', title: 'My work', timezone: 'America/Los_Angeles', favorites: ['someone/tool', 'other/lib'], sections: ['stats', 'feed'], feedComments: true });
+  assert.deepEqual(s, { user: 'someone', title: 'My work', timezone: 'America/Los_Angeles', favorites: ['someone/tool', 'other/lib'], sections: ['stats', 'feed'], feedComments: true, sourceRepo: null });
+});
+
+test('the repo the page is built from comes from GITHUB_REPOSITORY, which Actions sets', () => {
+  assert.equal(loadSettings({ ACTIVITY_USER: 'octo', GITHUB_REPOSITORY: 'octo/activity' }).sourceRepo, 'octo/activity');
+  assert.deepEqual(errorsOf({ ACTIVITY_USER: 'octo', GITHUB_REPOSITORY: 'not a repo' }), ['GITHUB_REPOSITORY "not a repo" is not owner/repo']);
 });
 
 test('in Actions, settings arrive as one JSON of all repo variables; a real env var wins', () => {

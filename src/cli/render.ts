@@ -1,4 +1,5 @@
 // `just render`: build dist/ from state.db (or, with --from-recording, from the recorded fixture: no token needed).
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { openDatabase, type Database } from '../db.ts';
@@ -28,6 +29,7 @@ export async function render(o: { fromRecording?: boolean; db?: string; out?: st
     db = openDatabase(path);
     env.ACTIVITY_USER ||= (db.prepare(`SELECT value FROM meta WHERE key = 'owner'`).get() as { value: string } | undefined)?.value;   // the data says whose it is
   }
+  env.GITHUB_REPOSITORY ||= repoFromGitRemote();   // Actions sets it; locally, the clone's origin
   const settings = loadSettings(env);
   const collectedAt = (db.prepare(`SELECT value FROM meta WHERE key = 'collected_at'`).get() as { value: string } | undefined)?.value;
   const model = buildModel(db, settings, collectedAt ? new Date(collectedAt) : new Date());
@@ -39,6 +41,14 @@ export async function render(o: { fromRecording?: boolean; db?: string; out?: st
   log(`wrote ${Object.keys(files).length} files to ${out}/: index.html ${kb(files['index.html'])}, ${model.years.length} year pages`);
   if (model.projects.skippedFavorites) log(`${model.projects.skippedFavorites} of ACTIVITY_FAVORITES left out: not a public repo GitHub knows about (check for typos)`);
   return { model, files };
+}
+
+/** owner/repo of the clone's GitHub origin, if there is one. */
+function repoFromGitRemote(): string | undefined {
+  try {
+    const url = execFileSync('git', ['remote', 'get-url', 'origin'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return /github\.com[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?$/.exec(url)?.[1];
+  } catch { return undefined; }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

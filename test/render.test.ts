@@ -85,6 +85,16 @@ test('repo rows leave out counts of zero', () => {
   assert.match(html, /<div class="counts"><b>2<\/b> commits · last active /, 'a repo with only commits shows just its commits');
 });
 
+test('the footer says when the data was fetched, and links the repo the page is built from', () => {
+  const footer = (html: string) => /<footer>[\s\S]*<\/footer>/.exec(html)![0];
+  const withRepo = site({ GITHUB_REPOSITORY: 'someone/activity' });
+  for (const page of ['index.html', '2023/index.html']) {
+    assert.match(footer(withRepo[page]), new RegExp(`Updated <time datetime="${NOW.toISOString()}">`), `${page}: the fetch time, which site.js shows as "N min ago"`);
+    assert.match(footer(withRepo[page]), /Made with <a href="https:\/\/github.com\/someone\/activity">someone\/activity<\/a>/, `${page}: links the source repo`);
+  }
+  assert.ok(!footer(site()['index.html']).includes('Made with'), 'no link when the repo is unknown');
+});
+
 test('the main page (snapshot)', (t) => {
   t.assert.snapshot(site()['index.html']);
 });

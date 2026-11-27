@@ -35,6 +35,8 @@ export interface YearSection {
 }
 export interface Model {
   owner: string; title: string; timezone: string; builtAt: string; sections: Section[];
+  /** owner/repo the page is built from, if known */
+  sourceRepo: string | null;
   /** yearsActive: whole years from the owner's earliest dated work (which can predate the account: imported history) to now. */
   profile: { login: string; bio: string | null; location: string | null; company: string | null; yearsActive: number; orgs: string[]; achievementsUrl: string };
   stats: {
@@ -171,7 +173,7 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
   for (const i of feed) kindCounts[i.kind] = (kindCounts[i.kind] ?? 0) + 1;
 
   return {
-    owner, title: settings.title, timezone: tz, builtAt: now.toISOString(), sections: settings.sections,
+    owner, title: settings.title, timezone: tz, builtAt: now.toISOString(), sections: settings.sections, sourceRepo: settings.sourceRepo,
     profile: { login: prof?.login ?? owner, bio: prof?.bio ?? null, location: prof?.location ?? null, company: prof?.company ?? null, yearsActive,
       orgs: q<{ login: string }>('SELECT login FROM orgs ORDER BY login').map(r => r.login), achievementsUrl: `https://github.com/${owner}?tab=achievements` },
     stats: {

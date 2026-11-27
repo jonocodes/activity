@@ -31,7 +31,7 @@ const page = (m: Model, base: string, title: string, body: Html) => h`<!doctype 
 <body>
 <main class="wrap">
 ${body}
-<footer>Built ${time(m, m.builtAt, true)} from public GitHub activity. Dates are in ${m.timezone}.</footer>
+<footer><p>Updated ${time(m, m.builtAt, true)} from public GitHub activity. Dates are in ${m.timezone}.</p>${m.sourceRepo && h`<p>Made with <a href="https://github.com/${m.sourceRepo}">${m.sourceRepo}</a>: fork it to make a page of your own.</p>`}</footer>
 </main>
 </body>
 </html>

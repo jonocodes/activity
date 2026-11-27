@@ -61,7 +61,8 @@ details.year { border-top: 1px solid var(--line); padding: 6px 0; } details.year
 .axis { display: grid; grid-template-columns: 1fr 300px; margin-top: 8px; }
 svg.tl { width: 100%; max-width: 300px; height: auto; display: block; overflow: visible; }
 .habits { display: grid; grid-template-columns: 1fr 2fr; gap: 28px; }
-footer { margin-top: 40px; font-size: .8em; color: var(--muted); }
+footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid var(--line); font-size: .8em; color: var(--muted); }
+footer p { margin: 4px 0; }
 [hidden] { display: none !important; }
 .k-commit { background: var(--k-commit); } .k-pr { background: var(--k-pr); } .k-issue { background: var(--k-issue); } .k-discussion { background: var(--k-discussion); }
 .k-discussion_reply { background: var(--k-discussion_reply); } .k-review { background: var(--k-review); } .k-new_repo { background: var(--k-new_repo); } .k-fork { background: var(--k-fork); }
