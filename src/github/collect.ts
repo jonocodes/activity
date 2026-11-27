@@ -3,7 +3,7 @@
 import type { Database } from '../db.ts';
 import { CollectError, type Client } from './client.ts';
 
-export interface CollectOptions { client: Client; db: Database; owner: string; now: Date; log: (line: string) => void; /** Repos to fetch details for even without work in them (favorites). */ alsoRepos?: string[] }
+export interface CollectOptions { client: Client; db: Database; owner: string; now: Date; log: (line: string) => void; /** Pause between retries of a timed-out search. */ sleep?: (ms: number) => Promise<void>; /** Repos to fetch details for even without work in them (favorites). */ alsoRepos?: string[] }
 export interface CollectResult { ownRepos: number; items: number; commits: number; externalRepos: number; droppedPrivate: number; apiCalls: number }
 
 const SOURCE = 'github';
@@ -119,10 +119,28 @@ export async function collectGitHub(o: CollectOptions): Promise<CollectResult> {
       { owner: name_owner, name, author: profile.id, since: r.isFork ? r.createdAt : null, after })).repository?.defaultBranchRef?.target?.history);
     for (const n of nodes) { fromHistory++; addCommit({ sha: n.oid, repo: r.nameWithOwner, fork: r.isFork, authored_at: utc(n.authoredDate), message: n.messageHeadline, additions: n.additions, deletions: n.deletions }); }
   }
+  // GitHub's search sometimes times out and says so with incomplete_results: retry a couple of times, then split the range
+  // (smaller searches rarely time out); only a single day that stays incomplete fails the run.
+  const sleep = o.sleep ?? (ms => new Promise(r => setTimeout(r, ms)));
+  let searchRetries = 0, searchSplits = 0;
+  const searchPage = async (q: string, page: number) => {
+    for (let attempt = 1; ; attempt++) {
+      const res = await client.rest(`/search/commits?q=${q}&per_page=100&page=${page}`);
+      if (!res.incomplete_results || attempt === 3) return res;
+      searchRetries++;
+      await sleep(2000 * attempt);
+    }
+  };
   const searchSlice = async (from: string, to: string): Promise<void> => {
     const q = encodeURIComponent(`author:${owner} author-date:${from}..${to}`);
-    const first = await client.rest(`/search/commits?q=${q}&per_page=100&page=1`);
-    if (first.incomplete_results) throw new CollectError(`commit search for ${from}..${to} returned incomplete results`);
+    const first = await searchPage(q, 1);
+    if (first.incomplete_results) {
+      if (from === to) throw new CollectError(`commit search for ${from} returned incomplete results, even after retrying`);
+      searchSplits++;
+      const mid = addDays(from, Math.floor(daysBetween(from, to) / 2));
+      await searchSlice(from, mid);
+      return searchSlice(addDays(mid, 1), to);
+    }
     if (first.total_count >= 1000) {
       if (from === to) throw new CollectError(`commit search for ${from} has ${first.total_count} results, more than the 1000 it can return`);
       const mid = addDays(from, Math.floor(daysBetween(from, to) / 2));
@@ -131,8 +149,8 @@ export async function collectGitHub(o: CollectOptions): Promise<CollectResult> {
     }
     const hits = [...first.items];
     for (let p = 2; p <= Math.ceil(first.total_count / 100); p++) {
-      const next = await client.rest(`/search/commits?q=${q}&per_page=100&page=${p}`);
-      if (next.incomplete_results) throw new CollectError(`commit search for ${from}..${to} returned incomplete results`);
+      const next = await searchPage(q, p);
+      if (next.incomplete_results) throw new CollectError(`commit search for ${from}..${to} (page ${p}) returned incomplete results, even after retrying`);
       hits.push(...next.items);
     }
     for (const h of hits) {
@@ -189,7 +207,7 @@ export async function collectGitHub(o: CollectOptions): Promise<CollectResult> {
   log(`contribution years: ${years[0]}–${years[years.length - 1]}`);
   log(`own public repos: ${ownRepos.length}; public orgs: ${orgs.length}`);
   log(`items: ${Object.entries(counts).sort().map(([k, n]) => `${k} ${n}`).join(', ')}`);
-  log(`commits: ${commits.size} (from own repos ${fromHistory}, search hits ${fromSearch})`);
+  log(`commits: ${commits.size} (from own repos ${fromHistory}, search hits ${fromSearch})${searchRetries || searchSplits ? `; search timed out ${searchRetries} times, retried${searchSplits ? `, split ${searchSplits} ranges` : ''}` : ''}`);
   log(`external repos: ${external.length}${missing ? ` (${missing} no longer exist)` : ''}`);
   log(`dropped as private: ${dropped}`);
   log(`API calls: ${client.calls()}`);

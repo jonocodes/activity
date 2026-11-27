@@ -61,7 +61,7 @@ function world(): World {
 async function run(w: World) {
   const db = openDatabase(':memory:'), lines: string[] = [], requests: HttpRequest[] = [];
   const client = createClient({ transport: fakeGitHub(w, requests), token: 't', sleep: async () => {} });
-  const result = await collectGitHub({ client, db, owner: w.login, now: new Date('2026-11-25T12:00:00Z'), log: l => lines.push(l) });
+  const result = await collectGitHub({ client, db, owner: w.login, now: new Date('2026-11-25T12:00:00Z'), log: l => lines.push(l), sleep: async () => {} });
   return { db, lines, requests, result };
 }
 const all = (db: Database, sql: string) => db.prepare(sql).all() as any[];
@@ -149,7 +149,21 @@ test('splits a commit search slice that hits the 1000-result cap', async () => {
   assert.equal(all(db, `SELECT count(*) AS n FROM commits WHERE repo = 'busy/repo'`)[0].n, 1500);
 });
 
-test('a commit search with incomplete results fails the run', async () => {
+test('a search that is briefly incomplete (GitHub timing out) is retried', async () => {
+  const w = world(); let flaky = 2;
+  w.searchIncomplete = () => flaky-- > 0;
+  const { db } = await run(w);
+  assert.equal(all(db, `SELECT count(*) AS n FROM commits WHERE sha = 'ext1'`)[0].n, 1);
+});
+
+test('a range that keeps timing out is split into smaller searches', async () => {
+  const w = world();
+  w.searchIncomplete = (from, to) => Date.parse(to) - Date.parse(from) > 60 * 86_400_000;   // only ranges over 60 days time out
+  const { db } = await run(w);
+  assert.equal(all(db, `SELECT count(*) AS n FROM commits WHERE sha = 'ext1'`)[0].n, 1, 'nothing lost');
+});
+
+test('a search still incomplete for a single day fails the run', async () => {
   const w = world(); w.searchIncomplete = true;
   await assert.rejects(run(w), (e: Error) => e instanceof CollectError && /incomplete/.test(e.message));
 });

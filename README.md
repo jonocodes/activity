@@ -56,7 +56,7 @@ How the page decides what to show. The reasons behind each rule are in the Decis
 - "Active days" is how many days in the last 12 months had any contribution, on GitHub's own calendar.
 
 **When something goes wrong**
-- A run fails, and doesn't deploy, on an API error that persists after retries, a GraphQL error, or a commit search reporting incomplete results. A deleted repo is simply skipped.
+- A run fails, and doesn't deploy, on an API error that persists after retries, or a GraphQL error. GitHub's commit search sometimes times out and reports incomplete results: the search is retried, then split into smaller date ranges, and the run only fails if a single day stays incomplete. A deleted repo is simply skipped.
 - A rate-limit wait of up to 90 seconds is waited out; a longer one fails the run.
 - The live page stays as it was until a run succeeds. A run also refuses to deploy if the number of items fell by more than 10% (build step 5).
 

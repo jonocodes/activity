@@ -12,7 +12,9 @@ export interface World {
   yearTotals: Record<number, { commits: number; issues: number; prs: number; reviews: number; restricted: number; days: [string, number][] }>;
   reviews: Record<number, any[]>; repoContributions: Record<number, any[]>;
   history: Record<string, any[]>;                 // own repo -> commit nodes
-  search: SearchCommit[]; searchIncomplete?: boolean;
+  search: SearchCommit[];
+  /** true: every search is incomplete; a function: decide per query (from, to, page). */
+  searchIncomplete?: boolean | ((from: string, to: string, page: number) => boolean);
   external: Record<string, any | null>;           // external repo details; null = deleted
 }
 
@@ -75,7 +77,8 @@ function search(w: World, url: URL) {
   const hits = w.search.filter(c => { const d = c.commit.author.date.slice(0, 10); return d >= from && d <= to; });
   const p = Number(url.searchParams.get('page') ?? 1), per = Number(url.searchParams.get('per_page') ?? 30);
   if ((p - 1) * per >= 1000) throw new Error('fake: asked past the 1000-result cap');
-  return { total_count: hits.length, incomplete_results: !!w.searchIncomplete, items: hits.slice((p - 1) * per, p * per) };
+  const incomplete = typeof w.searchIncomplete === 'function' ? w.searchIncomplete(from, to, p) : !!w.searchIncomplete;
+  return { total_count: hits.length, incomplete_results: incomplete, items: hits.slice((p - 1) * per, p * per) };
 }
 
 // ---------- building blocks for worlds ----------

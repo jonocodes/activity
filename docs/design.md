@@ -193,7 +193,7 @@ Built in `.github/workflows/build.yml` (2026-11-27):
 - **It doesn't deploy,** so Pages keeps serving the last good page. A run fails on:
   - an API error that persists after retries;
   - a GraphQL response carrying errors;
-  - a commit search reporting incomplete results.
+  - a commit search still reporting incomplete results for a single day. GitHub's search times out on its side now and then and says so with `incomplete_results`; the collector retries the query twice, then splits the date range in half and searches each half, and only fails when one day stays incomplete (added 2026-11-27, after the second live run failed on a six-month slice).
 - **Rate limits:** a short wait (the `Retry-After` or reset time) is waited out; a long one fails the run.
 - **Shrink guard:** each deploy also publishes `summary.json`, the counts per item kind. The next run fetches it from the live site and refuses to deploy if the total number of items fell by more than 10%. A `force` input on a manual (`workflow_dispatch`) run overrides it.
 - **Hearing about it:** GitHub emails a failed scheduled run, by default to whoever last edited the schedule.
