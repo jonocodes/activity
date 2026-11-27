@@ -133,13 +133,13 @@ test('stats: all-time counts, the last 12 months, active days, and the private c
   assert.ok(!('privateLast12' in s), 'the anonymous private count is not shown');
 });
 
-test('overview: licences of own repos that are not forks, and languages weighted by commits (top 6, then Other)', () => {
+test('overview: licenses of own repos that are not forks, and languages weighted by commits (top 6, then Other)', () => {
   const db = emptyDb();
-  own(db, 'a', { licence: 'MIT', language: 'Go' }); own(db, 'b', { licence: 'MIT' }); own(db, 'c', { licence: 'GPL-3.0' }); own(db, 'd'); own(db, 'f', { fork: true, parent: 'x/y', licence: 'Apache-2.0' });
+  own(db, 'a', { license: 'MIT', language: 'Go' }); own(db, 'b', { license: 'MIT' }); own(db, 'c', { license: 'GPL-3.0' }); own(db, 'd'); own(db, 'f', { fork: true, parent: 'x/y', license: 'Apache-2.0' });
   const langs = ['Go', 'Rust', 'C', 'Zig', 'Lua', 'Nim', 'Elm', 'Odin'];
   langs.forEach((l, i) => { ext(db, `e/${l}`, { language: l }); for (let k = 0; k <= 8 - i; k++) commit(db, `e/${l}`, `2026-0${1 + (k % 9)}-01T10:00:00Z`); });
   const o = buildModel(db, settings(), NOW).overview;
-  assert.deepEqual(o.licences, [{ name: 'MIT', count: 2 }, { name: 'GPL-3.0', count: 1 }]);
+  assert.deepEqual(o.licenses, [{ name: 'MIT', count: 2 }, { name: 'GPL-3.0', count: 1 }]);
   assert.deepEqual(o.languages.map(l => l.name), ['Go', 'Rust', 'C', 'Zig', 'Lua', 'Nim', 'Other']);
   assert.equal(o.languages.at(-1)!.commits, 3 + 2, 'Elm and Odin fold into Other');
   assert.equal(Math.round(o.languages.reduce((s, l) => s + l.share, 0) * 100), 100);

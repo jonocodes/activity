@@ -6,7 +6,7 @@ GitHub spreads this across the profile graph, the repositories tab, search and p
 
 **Live example:** https://jonocodes.github.io/activity/ (the author's page, rebuilt hourly). Design and decisions: [docs/design.md](docs/design.md).
 
-<img src="docs/img/page-desktop.png" alt="The live page on a desktop: stats, licence and language bars, the contribution heatmap, and the feed" width="68%"> <img src="docs/img/page-phone.png" alt="The same page on a phone" width="28%">
+<img src="docs/img/page-desktop.png" alt="The live page on a desktop: stats, license and language bars, the contribution heatmap, and the feed" width="68%"> <img src="docs/img/page-phone.png" alt="The same page on a phone" width="28%">
 
 ## How it works
 

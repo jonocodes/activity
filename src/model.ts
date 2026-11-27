@@ -9,7 +9,7 @@ export type FeedRow = (FeedItem & { group: false }) | { group: true; kind: Kind;
 export interface Week { start: string; rows: FeedRow[] }
 export interface Counts { commits: number; prs: number; issues: number; discussions: number }
 export interface RepoRow {
-  repo: string; url: string; description: string | null; stars: number; licence: string | null; archived: boolean;
+  repo: string; url: string; description: string | null; stars: number; license: string | null; archived: boolean;
   /** Set for an adopted fork: the repo it was forked from. */
   forkOf: string | null;
   /** A fork whose upstream no longer exists. */
@@ -44,7 +44,7 @@ export interface Model {
     /** activeDays: days in the last 12 months with any contribution. */
     last12: { contributions: number; activeDays: number };
   };
-  overview: { licences: { name: string; count: number }[]; languages: { name: string; commits: number; share: number }[] };
+  overview: { licenses: { name: string; count: number }[]; languages: { name: string; commits: number; share: number }[] };
   heatmap: { date: string; count: number }[];
   /** When the owner works, over the last 12 months, in their time zone: weekdays Monday first, hours 0–23. */
   habits: { weekdays: number[]; hours: number[] };
@@ -91,7 +91,7 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
 
   // ---------- repo rows ----------
   const monthIndex = (iso: string) => { const [y, m] = day(iso).split('-').map(Number), [ny, nm] = today.split('-').map(Number); return 23 - ((ny - y) * 12 + nm - m); };
-  const rowData = new Map<string, Omit<RepoRow, 'url' | 'description' | 'stars' | 'licence' | 'archived' | 'forkOf' | 'upstreamDeleted' | 'total' | 'score'>>();
+  const rowData = new Map<string, Omit<RepoRow, 'url' | 'description' | 'stars' | 'license' | 'archived' | 'forkOf' | 'upstreamDeleted' | 'total' | 'score'>>();
   const empty = (repo: string) => ({ repo, forks: [] as string[], counts: { commits: 0, prs: 0, issues: 0, discussions: 0 }, lastActive: null as string | null, monthly: new Array(24).fill(0), dots: [] as RepoRow['dots'] });
   const data = (repo: string) => { let d = rowData.get(repo); if (!d) rowData.set(repo, d = empty(repo)); return d; };
   for (const i of all) {
@@ -109,7 +109,7 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
     const r = repos.get(repo), d = rowData.get(repo) ?? empty(repo);   // reading a row never registers work
     const total = d.counts.commits + d.counts.prs + d.counts.issues + d.counts.discussions;
     const score = d.dots.reduce((s, dot) => s + 0.5 ** (Math.max(0, now.getTime() - Date.parse(dot.at)) / 86_400_000 / HALF_LIFE_DAYS), 0);
-    return { ...d, total, score, url: `https://github.com/${repo}`, description: r?.description ?? null, stars: r?.stars ?? 0, licence: r?.licence ?? null, archived: !!r?.is_archived,
+    return { ...d, total, score, url: `https://github.com/${repo}`, description: r?.description ?? null, stars: r?.stars ?? 0, license: r?.license ?? null, archived: !!r?.is_archived,
       forkOf: r?.is_own && r.is_fork && r.parent && adopted.has(repo) ? r.parent : null, upstreamDeleted: !!(r?.is_own && r.is_fork && !r.parent),
       lastActive: d.lastActive ?? r?.pushed_at ?? null, dots: [...d.dots].sort(newestFirst) };
   };
@@ -153,8 +153,8 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
   const count = (k: Kind) => all.filter(i => i.kind === k).length;
 
   // ---------- overview ----------
-  const licences = new Map<string, number>();
-  for (const r of ownRepos) if (!r.is_fork && r.licence) licences.set(r.licence, (licences.get(r.licence) ?? 0) + 1);
+  const licenses = new Map<string, number>();
+  for (const r of ownRepos) if (!r.is_fork && r.license) licenses.set(r.license, (licenses.get(r.license) ?? 0) + 1);
   const langCommits = new Map<string, number>();
   for (const c of commits) { const l = repos.get(c.repo)?.language; if (l) langCommits.set(l, (langCommits.get(l) ?? 0) + 1); }
   const langs = [...langCommits].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
@@ -181,7 +181,7 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
       last12: { contributions: Number(meta.contributions_last_12_months ?? lastYearDays.reduce((s, d) => s + d.count, 0)), activeDays },
     },
     overview: {
-      licences: [...licences].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name, count]) => ({ name, count })),
+      licenses: [...licenses].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name, count]) => ({ name, count })),
       languages: shown.map(([name, commits]) => ({ name, commits, share: commits / langTotal })),
     },
     heatmap: lastYearDays,

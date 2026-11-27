@@ -185,11 +185,11 @@ export async function collectGitHub(o: CollectOptions): Promise<CollectResult> {
     meta.run('restricted_last_12_months', String(profile.contributionsCollection.restrictedContributionsCount));
     const org = ins(`INSERT INTO orgs (source, login, name) VALUES (?, ?, NULL)`);
     for (const g of orgs) org.run(SOURCE, g.login);
-    const repo = ins(`INSERT INTO repos (source, name_with_owner, owner, is_own, is_private, is_fork, is_archived, parent, description, stars, licence, language, created_at, pushed_at)
+    const repo = ins(`INSERT INTO repos (source, name_with_owner, owner, is_own, is_private, is_fork, is_archived, parent, description, stars, license, language, created_at, pushed_at)
       VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     for (const r of ownRepos) repo.run(SOURCE, r.nameWithOwner, r.owner.login, 1, r.isFork ? 1 : 0, r.isArchived ? 1 : 0, r.parent?.nameWithOwner ?? null, r.description, r.stargazerCount,
-      licence(r), r.primaryLanguage?.name ?? null, utc(r.createdAt), r.pushedAt ? utc(r.pushedAt) : null);
-    for (const r of external) repo.run(SOURCE, r.nameWithOwner, r.nameWithOwner.split('/')[0], 0, 0, 0, null, r.description, r.stargazerCount, licence(r), r.primaryLanguage?.name ?? null, null, null);
+      license(r), r.primaryLanguage?.name ?? null, utc(r.createdAt), r.pushedAt ? utc(r.pushedAt) : null);
+    for (const r of external) repo.run(SOURCE, r.nameWithOwner, r.nameWithOwner.split('/')[0], 0, 0, 0, null, r.description, r.stargazerCount, license(r), r.primaryLanguage?.name ?? null, null, null);
     const item = ins(`INSERT OR IGNORE INTO items (source, node_id, kind, repo, created_at, title, url, state, merged_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     for (const i of items) item.run(SOURCE, i.node_id, i.kind, i.repo, i.created_at, i.title, i.url, i.state ?? null, i.merged_at ?? null);
     const commit = ins(`INSERT INTO commits (source, sha, repo, authored_at, message, additions, deletions) VALUES (?, ?, ?, ?, ?, ?, ?)`);
@@ -214,6 +214,6 @@ export async function collectGitHub(o: CollectOptions): Promise<CollectResult> {
   return { ownRepos: ownRepos.length, items: items.length, commits: commits.size, externalRepos: external.length, droppedPrivate: dropped, apiCalls: client.calls() };
 }
 
-const licence = (r: { licenseInfo?: { spdxId?: string } | null }) => r.licenseInfo?.spdxId && r.licenseInfo.spdxId !== 'NOASSERTION' ? r.licenseInfo.spdxId : null;
+const license = (r: { licenseInfo?: { spdxId?: string } | null }) => r.licenseInfo?.spdxId && r.licenseInfo.spdxId !== 'NOASSERTION' ? r.licenseInfo.spdxId : null;
 const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);

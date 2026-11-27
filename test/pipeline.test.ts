@@ -24,7 +24,7 @@ const C = 'CANARY-PRIVATE';
 const privateWorld = (): World => ({
   login: 'fixture-owner', id: 'U_1', createdAt: '2015-03-01T10:00:00Z', bio: null, location: null, company: null,
   years: [2026], last12: { contributions: 10, restricted: 3 }, orgs: [],
-  repos: [repo('fixture-owner/tool'), repo(`fixture-owner/${C}-repo`, { isPrivate: true, description: `${C} description`, primaryLanguage: { name: `${C}-lang` }, licenseInfo: { spdxId: `${C}-licence` } })],
+  repos: [repo('fixture-owner/tool'), repo(`fixture-owner/${C}-repo`, { isPrivate: true, description: `${C} description`, primaryLanguage: { name: `${C}-lang` }, licenseInfo: { spdxId: `${C}-license` } })],
   items: {
     issues: [{ id: 'I1', createdAt: '2026-05-01T10:00:00Z', title: `${C} issue title`, url: `https://github.com/acme/${C}/issues/1`, state: 'OPEN', repository: ref(`acme/${C}`, true) },
       { id: 'I2', createdAt: '2026-05-02T10:00:00Z', title: 'public issue', url: 'https://github.com/a/b/issues/2', state: 'OPEN', repository: ref('a/b') }],

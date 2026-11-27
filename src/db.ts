@@ -2,7 +2,7 @@
 // v1 creates it fresh on every run; the same file is what a future state store would keep.
 import { DatabaseSync } from 'node:sqlite';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;   // 2: repos.licence renamed to license (2026-11-27)
 
 // Every timestamp is stored in UTC ("…Z"). GitHub's APIs mix UTC and local offsets, so collectors convert on the way in;
 // this CHECK makes a missed conversion fail loudly instead of quietly mis-sorting the feed.
@@ -23,7 +23,7 @@ CREATE TABLE orgs (source TEXT NOT NULL, login TEXT NOT NULL, name TEXT, PRIMARY
 CREATE TABLE repos (
   source TEXT NOT NULL, name_with_owner TEXT NOT NULL, owner TEXT NOT NULL,
   is_own INTEGER NOT NULL, is_private INTEGER NOT NULL DEFAULT 0, is_fork INTEGER NOT NULL DEFAULT 0, is_archived INTEGER NOT NULL DEFAULT 0,
-  parent TEXT, description TEXT, stars INTEGER, licence TEXT, language TEXT,
+  parent TEXT, description TEXT, stars INTEGER, license TEXT, language TEXT,
   created_at TEXT ${utc('created_at')}, pushed_at TEXT ${utc('pushed_at')},
   PRIMARY KEY (source, name_with_owner));
 

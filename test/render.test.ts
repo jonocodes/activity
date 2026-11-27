@@ -6,8 +6,8 @@ import { emptyDb, own, ext, item, commit, days, settings, NOW, OWNER } from './s
 
 function site(env: Record<string, string> = {}) {
   const db = emptyDb();
-  own(db, 'tool', { licence: 'MIT', language: 'TypeScript', description: 'A small "tool" & more' });
-  ext(db, 'big/upstream', { stars: 1200, licence: 'Apache-2.0' });
+  own(db, 'tool', { license: 'MIT', language: 'TypeScript', description: 'A small "tool" & more' });
+  ext(db, 'big/upstream', { stars: 1200, license: 'Apache-2.0' });
   commit(db, `${OWNER}/tool`, '2026-11-20T07:30:00Z', 'Fix <script>alert(1)</script> in "titles"');
   commit(db, `${OWNER}/tool`, '2026-11-20T06:30:00Z');
   item(db, 'pr', 'big/upstream', '2026-11-24T18:00:00Z', 'Speed up the <b>parser</b>');

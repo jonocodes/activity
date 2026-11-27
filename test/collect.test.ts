@@ -71,8 +71,8 @@ test('collects the profile, public orgs and own repos', async () => {
   const { db } = await run(world());
   assert.deepEqual({ ...all(db, 'SELECT login, created_at, bio, location, company FROM profile')[0] }, { login: OWNER, created_at: '2015-03-01T10:00:00Z', bio: 'Builds small tools', location: 'Lisbon', company: null });
   assert.deepEqual(all(db, 'SELECT login FROM orgs').map(r => r.login), ['tidy-org']);
-  const own = all(db, 'SELECT name_with_owner, is_fork, parent, licence, language, stars FROM repos WHERE is_own = 1 ORDER BY name_with_owner');
-  assert.deepEqual(own.map(r => [r.name_with_owner, r.is_fork, r.parent, r.licence, r.language, r.stars]), [
+  const own = all(db, 'SELECT name_with_owner, is_fork, parent, license, language, stars FROM repos WHERE is_own = 1 ORDER BY name_with_owner');
+  assert.deepEqual(own.map(r => [r.name_with_owner, r.is_fork, r.parent, r.license, r.language, r.stars]), [
     [`${OWNER}/tool`, 0, null, 'MIT', 'TypeScript', 7],
     [`${OWNER}/upstream`, 1, 'big/upstream', null, null, 0],
   ]);
@@ -127,10 +127,10 @@ test('converts every timestamp to UTC and keeps only the first line of a commit 
 
 test('stores details of external repos and skips ones that no longer exist', async () => {
   const { db } = await run(world());
-  const ext = all(db, 'SELECT name_with_owner, description, stars, licence, language FROM repos WHERE is_own = 0 ORDER BY name_with_owner');
+  const ext = all(db, 'SELECT name_with_owner, description, stars, license, language FROM repos WHERE is_own = 0 ORDER BY name_with_owner');
   // other/lib was deleted; someone/upstream only held a commit that's counted under big/upstream, so it isn't on the page
   assert.deepEqual(ext.map(r => r.name_with_owner), ['big/upstream']);
-  assert.deepEqual([ext[0].description, ext[0].stars, ext[0].licence, ext[0].language], ['The big one', 5000, 'Apache-2.0', 'Go']);
+  assert.deepEqual([ext[0].description, ext[0].stars, ext[0].license, ext[0].language], ['The big one', 5000, 'Apache-2.0', 'Go']);
 });
 
 test('nothing private is collected or logged, and the log only counts what was dropped', async () => {

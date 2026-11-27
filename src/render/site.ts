@@ -68,8 +68,8 @@ const meterList = (title: string, entries: [string, number, string][]) => {
 };
 function overview(m: Model) {
   const o = m.overview;
-  if (!o.licences.length && !o.languages.length) return null;
-  return h`<div class="overview">${o.licences.length ? meterList('Licences, own repos', o.licences.map(l => [l.name, l.count, String(l.count)])) : h`<div></div>`}${o.languages.length ? meterList('Languages, by commits', o.languages.map(l => [l.name, l.commits, `${Math.round(l.share * 100)}%`])) : null}</div>`;
+  if (!o.licenses.length && !o.languages.length) return null;
+  return h`<div class="overview">${o.licenses.length ? meterList('Licenses, own repos', o.licenses.map(l => [l.name, l.count, String(l.count)])) : h`<div></div>`}${o.languages.length ? meterList('Languages, by commits', o.languages.map(l => [l.name, l.commits, `${Math.round(l.share * 100)}%`])) : null}</div>`;
 }
 function habits(m: Model) {
   const cols = (values: number[], labels: string[]) => {
@@ -79,7 +79,7 @@ function habits(m: Model) {
   };
   return h`<div class="habits"><div class="chart"><h4>Weekdays</h4>${cols(m.habits.weekdays, ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])}</div><div class="chart"><h4>Hours</h4>${cols(m.habits.hours, m.habits.hours.map((_, i) => String(i).padStart(2, '0')))}</div></div>`;
 }
-/** GitHub's contribution graph, labelled: a column per week, a row per weekday (Sunday on top), darker for more. */
+/** GitHub's contribution graph, labeled: a column per week, a row per weekday (Sunday on top), darker for more. */
 function heatmap(days: { date: string; count: number }[], title: string) {
   if (!days.length) return null;
   const cell = 11, step = 13, left = 28, top = 16;
@@ -167,14 +167,14 @@ function repoRow(m: Model, r: RepoRow, mode: 'depth' | 'breadth', axis?: [number
     .filter(([k]) => r.counts[k] > 0).map(([k, l]) => h`<b>${r.counts[k]}</b> ${l}${r.counts[k] === 1 ? '' : 's'} · `);   // counts of zero are left out
   const filter = [r.repo, ...r.forks].join(' ');
   return h`<div class="proj${mode === 'breadth' ? ' wide' : ''}" data-filter="${filter}" data-score="${r.score.toFixed(3)}" data-last="${r.lastActive ?? ''}" data-total="${r.total}">
-<div><a class="name" href="${r.url}">${short(m, r.repo)}</a>${r.licence ? h`<span class="badge">${r.licence}</span>` : null}${r.archived ? h`<span class="badge">archived</span>` : null}${r.forkOf ? h`<span class="badge">fork of ${r.forkOf}</span>` : null}${r.upstreamDeleted ? h`<span class="badge">fork of a deleted repo</span>` : null}${r.stars ? h`<span class="muted small"> ★ ${r.stars.toLocaleString('en-US')}</span>` : null}${r.forks.length ? h`<span class="muted small"> · incl. commits in <a href="https://github.com/${r.forks[0]}">your fork</a></span>` : null}</div>
+<div><a class="name" href="${r.url}">${short(m, r.repo)}</a>${r.license ? h`<span class="badge">${r.license}</span>` : null}${r.archived ? h`<span class="badge">archived</span>` : null}${r.forkOf ? h`<span class="badge">fork of ${r.forkOf}</span>` : null}${r.upstreamDeleted ? h`<span class="badge">fork of a deleted repo</span>` : null}${r.stars ? h`<span class="muted small"> ★ ${r.stars.toLocaleString('en-US')}</span>` : null}${r.forks.length ? h`<span class="muted small"> · incl. commits in <a href="https://github.com/${r.forks[0]}">your fork</a></span>` : null}</div>
 ${r.description ? h`<div class="small">${r.description}</div>` : null}
 <div class="counts">${counts}last active ${r.lastActive ? time(m, r.lastActive) : '—'}</div>
 <div class="chart">${mode === 'depth' ? monthBars(r.monthly) : dotStrip(m, r, axis!)}</div>
 </div>`;
 }
 
-// ---------- small charts (one colour; every number here is ours, every title is escaped) ----------
+// ---------- small charts (one color; every number here is ours, every title is escaped) ----------
 function monthBars(months: number[], w = 150, hgt = 26) {
   const max = Math.max(1, ...months), bw = w / 24 - 2;
   return raw(`<svg width="${w}" height="${hgt}" role="img" aria-label="commits per month, last 24 months">${months.map((v, i) => { const x = (i * (bw + 2)).toFixed(1), bh = v ? Math.max(3, v / max * (hgt - 2)) : 0;

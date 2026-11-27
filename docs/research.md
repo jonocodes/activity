@@ -137,7 +137,7 @@ The v1 collector against the live API for `jonocodes`, with a token that could a
 
 ## 3. Existing projects and tools (verified 2026-11-23)
 
-Stars, last default-branch commit and licence come from `gh api repos/<r>` and `gh api repos/<r>/commits?per_page=1`.
+Stars, last default-branch commit and license come from `gh api repos/<r>` and `gh api repos/<r>/commits?per_page=1`.
 
 | Project | Stars / last commit | What it is |
 |---|---|---|

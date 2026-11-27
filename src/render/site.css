@@ -1,4 +1,4 @@
-/* The page's only stylesheet. Light and dark follow the system; dark colours are chosen for the dark background. */
+/* The page's only stylesheet. Light and dark follow the system; dark colors are chosen for the dark background. */
 :root { --bg:#fff; --fg:#1f2328; --muted:#656d76; --line:#d8dee4; --card:#f6f8fa; --accent:#0969da; --heat:#2da44e; --viz:#2a78d6; --viz-track:#dbe8f8;
   --k-commit:#0969da; --k-pr:#8250df; --k-issue:#1a7f37; --k-discussion:#bf8700; --k-discussion_reply:#9a6700; --k-review:#cf222e;
   --k-new_repo:#bc4c00; --k-fork:#57606a; --k-issue_comment:#8c959f; --k-commit_comment:#8c959f; color-scheme: light dark; }
