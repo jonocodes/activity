@@ -13,8 +13,8 @@ const dbAt = process.argv.indexOf('--db');
 const dbPath = dbAt > 0 ? process.argv[dbAt + 1] : 'state.db';
 
 const token = process.env.GH_PAT;
-let owner: string;
-try { owner = loadSettings(process.env).user; }
+let owner: string, favorites: string[];
+try { ({ user: owner, favorites } = loadSettings(process.env)); }
 catch (e) { if (e instanceof SettingsError) fail(e.problems.join('\n  ')); throw e; }
 if (!token) fail('GH_PAT is not set: a fine-grained token with "Public repositories (read-only)" access and an expiry of a year or less (see the README)');
 
@@ -25,7 +25,7 @@ const db = openDatabase(dbPath);
 const now = new Date();
 const started = Date.now();
 try {
-  await collectGitHub({ client, db, owner: owner!, now, log: line => console.log(`collect: ${line}`) });
+  await collectGitHub({ client, db, owner: owner!, now, log: line => console.log(`collect: ${line}`), alsoRepos: favorites! });
   console.log(`collect: wrote ${dbPath} in ${Math.round((Date.now() - started) / 1000)} s`);
   if (recorder) {
     saveRecording(RECORDING, { owner: owner!, recordedAt: now.toISOString(), exchanges: recorder.exchanges });

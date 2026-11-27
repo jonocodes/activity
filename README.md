@@ -24,7 +24,7 @@ GitHub spreads this across the profile graph, the repositories tab, search and p
 
 ## Methodology
 
-How the page decides what to show. The reasons behind each rule are in the Decisions table of [docs/design.md](docs/design.md). The collection rules are built; the display rules arrive with the renderer (build step 4).
+How the page decides what to show. The reasons behind each rule are in the Decisions table of [docs/design.md](docs/design.md). The collection rules and the display rules are built (`src/github/`, `src/model.ts`); the page itself arrives with the renderer (build step 4).
 
 **What's collected**
 - Public activity only. The token can only read public data, and anything marked private is dropped on arrival anyway, in case a token can see more. The log reports how many items were dropped, never their names.
@@ -38,10 +38,10 @@ How the page decides what to show. The reasons behind each rule are in the Decis
 
 **Repos and forks**
 - **Projects** shows your favorites (if set) and then your own repos. **Contributing to** shows other people's repos you've worked in.
-- A fork you made to contribute upstream isn't listed on its own: your commits in it are counted on the upstream's row in Contributing to, with a link to the fork.
+- A fork you made to contribute upstream isn't listed on its own: your commits in it (and the odd pull request or issue opened inside it) are counted on the upstream's row in Contributing to, with a link to the fork.
 - A fork you've **adopted**, meaning you've opened 3 or more pull requests or issues inside it, is your own project: it's listed under Projects as "fork of …" and keeps its own commits. Pull requests you send upstream still count on the upstream's row, so a fork can show in both places without anything counted twice. The fork's name isn't used to decide this, since upstream repos get renamed too.
 - A fork whose upstream was deleted is listed under Projects, marked as such. Forks with no work of yours aren't listed, though "forked X" still appears in the feed.
-- Favorites (`ACTIVITY_FAVORITES`) are shown in your order and aren't repeated in the list below them.
+- Favorites (`ACTIVITY_FAVORITES`) are shown in your order and aren't repeated in the list below them. A favorite that isn't a public repo GitHub knows about is left out; the run's log says how many, without names.
 
 **Feed and dates**
 - Which day an item falls on is decided by your time zone (`ACTIVITY_TIMEZONE`). Items of the same kind, in the same repo, on the same day become one expandable row: commits from 2, everything else from 3.
@@ -66,7 +66,7 @@ Copy `.env.example` to `.env` and set `GH_PAT` and `ACTIVITY_USER` to run agains
 - `just dev` re-renders on every save, so you can iterate on the page without fetching again (build step 4);
 - `just record-fixtures` does the same and saves every API exchange to `test/fixtures/recorded/github.json.gz`, which the tests replay. It refuses to save if any response holds private data, so use the public-only token.
 
-**Status:** build steps 1 (skeleton) and 2 (the GitHub collector, `src/github/`) are done. The collector is tested against a fake GitHub for edge cases and against a recording of a real account (`test/fixtures/recorded/`).
+**Status:** build steps 1–3 are done: the skeleton, the GitHub collector (`src/github/`, tested against a fake GitHub and a recording of a real account), and settings plus the render model (`src/settings.ts`, `src/model.ts`), which holds every display rule. Next is the renderer (build step 4).
 
 ## Docs
 

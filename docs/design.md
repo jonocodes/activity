@@ -25,7 +25,7 @@ Designed 2026-11-23 to 2026-11-24, before any code, and revised on 2026-11-24 af
 | **Each commit is counted once, even when search finds it in several repos** (2026-11-24) | Commit search returns the same sha in a repo and again in every fork that contains it, which would count one commit several times. Keep one row per sha, credited to the repo that isn't a fork; if every hit is a fork, prefer the user's own fork. A commit that exists only in a fork stays credited to that fork, since it may never have been merged upstream |
 | Every stored item has a `source` (`github` first) | Hacker News is likely next, possibly custom (e.g. reading GoatCounter); Codeberg (Forgejo API) after that. Each source is a module writing to the same tables. A failing source keeps its last data and doesn't stop the run |
 | Combine all three prototype views | A stats strip (variant C) above a shared heatmap, then Feed (A) and Projects (B) tabs. Clicking a project filters the feed. Screenshots: [img/](img/) |
-| **Favorites, not GitHub pins** (2026-11-25) | The owner picks which repos to highlight, and in what order, with `ACTIVITY_FAVORITES`, independent of their GitHub pins. Unset means no Favorites section. Any repo can be a favorite, own or external. A favorite appears once: it's left out of the My projects list below it |
+| **Favorites, not GitHub pins** (2026-11-25) | The owner picks which repos to highlight, and in what order, with `ACTIVITY_FAVORITES`, independent of their GitHub pins. Unset means no Favorites section. Any repo can be a favorite, own or external. A favorite appears once: it's left out of the My projects list below it. Only a known public repo is shown (the collector fetches favorites' details too); anything else is skipped, since a row would link to a page visitors can't open, and the log counts it without a name, because logs are public and the name might be private |
 | **Three tabs: Feed, Projects, Contributing to** (2026-11-25) | The owner's own work and their work in other people's repos are different stories, so "Contributing to" gets its own tab instead of being a group inside Projects. Named "Contributing to", not "Contributions", because a contribution is GitHub's daily counted unit (see `GLOSSARY.md`), which includes own repos |
 | List public org memberships only (2026-11-24) | Memberships are private by default on GitHub; publishing them is a private-data choice, deferred with private repos. REST `/users/<user>/orgs` lists only public memberships whatever the token, and needs no scope |
 | Archive the 30-day events feed once the state store exists | The only record of pushes to non-main branches and branch create/delete. History from before the first run can't be recovered |
@@ -218,16 +218,16 @@ Gotchas:
 
 ## Settings
 
-All optional, set as Actions variables (Settings → Secrets and variables → Actions → Variables). Locally, put them in `.env` (see [.env.example](../.env.example)); direnv loads it. The workflow passes every variable in at once (`toJSON(vars)`), so adding a setting never means editing the workflow. An unknown `ACTIVITY_*` name or a bad value fails the run with a clear message, so typos don't go unnoticed.
+All optional, set as Actions variables (Settings → Secrets and variables → Actions → Variables). Locally, put them in `.env` (see [.env.example](../.env.example)); direnv loads it. The workflow passes every variable in at once (`toJSON(vars)`), so adding a setting never means editing the workflow. An unknown `ACTIVITY_*` name or a bad value fails the run with a clear message listing every problem, and suggests the nearest name for a typo (`ACTIVITY_TIMEZON` → `ACTIVITY_TIMEZONE`). A real env var wins over the same name in `ACTIVITY_VARS`. Built in `src/settings.ts`.
 
 | Variable | Default | What it does |
 |---|---|---|
 | `ACTIVITY_USER` | the repo owner | GitHub login to build the page for |
 | `ACTIVITY_TITLE` | `<user> on GitHub` | Page title |
 | `ACTIVITY_TIMEZONE` | `UTC` | IANA time zone that decides which day an item falls on |
-| `ACTIVITY_FAVORITES` | none (no Favorites section) | Comma-separated `owner/repo` list, in display order, shown at the top of Projects |
-| `ACTIVITY_SECTIONS` | all except `habits` | Comma-separated: `profile`, `stats`, `heatmap`, `feed`, `projects`, `habits` (busiest hours and weekdays) |
-| `ACTIVITY_FEED_COMMENTS` | `false` | Show issue comments in the feed |
+| `ACTIVITY_FAVORITES` | none (no Favorites section) | Comma-separated `owner/repo` list, in display order, shown at the top of Projects. A favorite that isn't a known public repo is left out, and the log counts it without naming it |
+| `ACTIVITY_SECTIONS` | all except `habits` | Comma-separated: `profile`, `stats`, `overview`, `heatmap`, `feed`, `projects`, `contributing`, `habits` (busiest hours and weekdays) |
+| `ACTIVITY_FEED_COMMENTS` | `false` | Show issue and commit comments in the feed |
 
 ## Token
 
@@ -270,7 +270,7 @@ Each step ends with tests passing and the README updated.
    - `node:test`;
    - the SQLite adapter on `node:sqlite`.
 2. **GitHub collector into SQLite** (done 2026-11-26), driven by recorded fixtures: profile, public orgs, repos, the GraphQL connections, `contributionsCollection` by year, commit search slices, line counts. Drops private items. Confirms the public-only token works for every query.
-3. **Settings from env vars,** validated; a render model; the privacy test.
+3. **Settings from env vars,** validated; a render model; the privacy test (done 2026-11-26). The render model (`src/model.ts`) is a pure function of (database, settings, now) holding every display rule; the renderer only turns it into HTML.
 4. **Renderer:** the combined page, built from the prototype views, as snapshot-tested HTML, with dates as in [Dates and time zones](#dates-and-time-zones).
 5. **Workflow:** scheduled Action deploying to Pages, with the keep-alive, the failure rules and the shrink guard.
 6. **Later:**

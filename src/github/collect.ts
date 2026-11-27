@@ -3,7 +3,7 @@
 import type { Database } from '../db.ts';
 import { CollectError, type Client } from './client.ts';
 
-export interface CollectOptions { client: Client; db: Database; owner: string; now: Date; log: (line: string) => void }
+export interface CollectOptions { client: Client; db: Database; owner: string; now: Date; log: (line: string) => void; /** Repos to fetch details for even without work in them (favorites). */ alsoRepos?: string[] }
 export interface CollectResult { ownRepos: number; items: number; commits: number; externalRepos: number; droppedPrivate: number; apiCalls: number }
 
 const SOURCE = 'github';
@@ -144,7 +144,7 @@ export async function collectGitHub(o: CollectOptions): Promise<CollectResult> {
   for (const y of years) await searchSlice(`${y}-01-01`, `${y}-12-31`);
 
   // ---------- details of external repos on the page ----------
-  const externalNames = [...new Set([...items.map(i => i.repo), ...[...commits.values()].map(c => c.repo), ...ownRepos.filter(r => r.parent).map(r => r.parent.nameWithOwner)])]
+  const externalNames = [...new Set([...items.map(i => i.repo), ...[...commits.values()].map(c => c.repo), ...ownRepos.filter(r => r.parent).map(r => r.parent.nameWithOwner), ...(o.alsoRepos ?? [])])]
     .filter(n => !ownNames.has(n) && !n.startsWith(`${owner}/`)).sort();
   const external: any[] = [];
   let missing = 0;
