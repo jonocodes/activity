@@ -17,6 +17,10 @@ export interface RepoRow {
   /** The owner's forks whose work is counted on this row. */
   forks: string[];
   counts: Counts; lastActive: string | null;
+  /** Commits, pull requests, issues and discussions, all time. */
+  total: number;
+  /** "Top": each item counts 1, halving in weight every year of age (frecency). Lists are ordered by this. */
+  score: number;
   /** Commits per month, the last 24 months, oldest first (the owner's months). */
   monthly: number[];
   /** One per commit, pull request, issue or discussion, for the Contributing to timeline. */
@@ -56,6 +60,7 @@ const COMMENTS: Kind[] = ['issue_comment', 'commit_comment'];
 const WORK: Kind[] = ['commit', 'pr', 'issue', 'discussion', 'discussion_reply'];   // what a repo row counts
 const ADOPTION_THRESHOLD = 3;
 const LANGUAGES_SHOWN = 6;
+const HALF_LIFE_DAYS = 365;
 
 export function buildModel(db: Database, settings: Settings, now: Date): Model {
   const tz = settings.timezone, owner = settings.user;
@@ -86,7 +91,7 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
 
   // ---------- repo rows ----------
   const monthIndex = (iso: string) => { const [y, m] = day(iso).split('-').map(Number), [ny, nm] = today.split('-').map(Number); return 23 - ((ny - y) * 12 + nm - m); };
-  const rowData = new Map<string, Omit<RepoRow, 'url' | 'description' | 'stars' | 'licence' | 'archived' | 'forkOf' | 'upstreamDeleted'>>();
+  const rowData = new Map<string, Omit<RepoRow, 'url' | 'description' | 'stars' | 'licence' | 'archived' | 'forkOf' | 'upstreamDeleted' | 'total' | 'score'>>();
   const empty = (repo: string) => ({ repo, forks: [] as string[], counts: { commits: 0, prs: 0, issues: 0, discussions: 0 }, lastActive: null as string | null, monthly: new Array(24).fill(0), dots: [] as RepoRow['dots'] });
   const data = (repo: string) => { let d = rowData.get(repo); if (!d) rowData.set(repo, d = empty(repo)); return d; };
   for (const i of all) {
@@ -102,7 +107,9 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
   }
   const row = (repo: string): RepoRow => {
     const r = repos.get(repo), d = rowData.get(repo) ?? empty(repo);   // reading a row never registers work
-    return { ...d, url: `https://github.com/${repo}`, description: r?.description ?? null, stars: r?.stars ?? 0, licence: r?.licence ?? null, archived: !!r?.is_archived,
+    const total = d.counts.commits + d.counts.prs + d.counts.issues + d.counts.discussions;
+    const score = d.dots.reduce((s, dot) => s + 0.5 ** (Math.max(0, now.getTime() - Date.parse(dot.at)) / 86_400_000 / HALF_LIFE_DAYS), 0);
+    return { ...d, total, score, url: `https://github.com/${repo}`, description: r?.description ?? null, stars: r?.stars ?? 0, licence: r?.licence ?? null, archived: !!r?.is_archived,
       forkOf: r?.is_own && r.is_fork && r.parent && adopted.has(repo) ? r.parent : null, upstreamDeleted: !!(r?.is_own && r.is_fork && !r.parent),
       lastActive: d.lastActive ?? r?.pushed_at ?? null, dots: [...d.dots].sort(newestFirst) };
   };
@@ -110,12 +117,12 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
 
   const favorites = settings.favorites.filter(f => repos.has(f)).map(row);   // the collector only stores public repos
   const mine = ownRepos.filter(r => (!r.is_fork || !r.parent || adopted.has(r.name_with_owner)) && !settings.favorites.includes(r.name_with_owner))
-    .map(r => row(r.name_with_owner)).sort((a, b) => (b.lastActive ?? '').localeCompare(a.lastActive ?? ''));
+    .map(r => row(r.name_with_owner)).sort(byTop);
   const touched = new Set(all.filter(i => i.kind !== 'fork').map(i => i.repo));
   const idleForks = ownRepos.filter(r => r.is_fork && r.parent && !adopted.has(r.name_with_owner) && !touched.has(r.name_with_owner)).length;
 
   // ---------- contributing to: external repos and how broad the work is ----------
-  const external = [...rowData.keys()].filter(r => !isOwnRow(r)).map(row).sort((a, b) => (b.lastActive ?? '').localeCompare(a.lastActive ?? ''));
+  const external = [...rowData.keys()].filter(r => !isOwnRow(r)).map(row).sort(byTop);
   const extDots = external.flatMap(r => r.dots.map(d => ({ ...d, repo: r.repo })));
   const firstYear = extDots.length ? Math.min(...extDots.map(d => yearOf(d.at))) : null;
   const perYear: { year: number; repos: number }[] = [];
@@ -207,6 +214,7 @@ function weeksOf(list: FeedItem[], day: (iso: string) => string): Week[] {
 }
 
 const newestFirst = (a: { at: string }, b: { at: string }) => b.at.localeCompare(a.at);
+const byTop = (a: RepoRow, b: RepoRow) => b.score - a.score || (b.lastActive ?? '').localeCompare(a.lastActive ?? '') || a.repo.localeCompare(b.repo);
 /** Whole years between two moments, counting a year only once its anniversary has passed. */
 function wholeYears(fromIso: string, to: Date) {
   const f = new Date(fromIso);

@@ -44,6 +44,7 @@ How the page decides what to show. The reasons behind each rule are in the Decis
 - A fork you made to contribute upstream isn't listed on its own: your commits in it (and the odd pull request or issue opened inside it) are counted on the upstream's row in Contributing to, with a link to the fork.
 - A fork you've **adopted**, meaning you've opened 3 or more pull requests or issues inside it, is your own project: it's listed under Projects as "fork of …" and keeps its own commits. Pull requests you send upstream still count on the upstream's row, so a fork can show in both places without anything counted twice. The fork's name isn't used to decide this, since upstream repos get renamed too.
 - A fork whose upstream was deleted is listed under Projects, marked as such. Forks with no work of yours aren't listed, though "forked X" still appears in the feed.
+- Projects and Contributing to are ordered by **Top**: every commit, pull request, issue and discussion counts, and its weight halves for each year of its age. So a repo ranks high when it has a lot of work and recent work. Visitors can switch a list to **Recent** (last active first) or **Most work** (all-time total).
 - Favorites (`ACTIVITY_FAVORITES`) are shown in your order and aren't repeated in the list below them. A favorite that isn't a public repo GitHub knows about is left out; the run's log says how many, without names.
 
 **Feed and dates**

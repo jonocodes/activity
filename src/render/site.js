@@ -67,6 +67,30 @@
     apply();
   }
 
+  // ---------- repo lists: Top (the default order) · Recent · Most work ----------
+  const ORDERS = [['top', 'Top', 'A lot of work, weighted towards recent'], ['recent', 'Recent', 'Most recently active first'], ['total', 'Most work', 'Most commits, pull requests, issues and discussions, all time']];
+  const key = { top: r => +r.dataset.score, recent: r => Date.parse(r.dataset.last || 0), total: r => +r.dataset.total };
+  for (const list of $$('[data-sortable]')) {
+    const bar = document.createElement('p');
+    bar.className = 'sort';
+    bar.append('Sort: ');
+    const buttons = ORDERS.map(([id, label, title], i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = label; b.title = title; b.dataset.order = id;
+      if (i === 0) b.classList.add('on');
+      b.addEventListener('click', () => {
+        const rows = $$(':scope > .proj', list);
+        rows.sort((a, c) => key[id](c) - key[id](a) || +c.dataset.score - +a.dataset.score);
+        list.append(...rows);
+        for (const x of buttons) x.classList.toggle('on', x === b);
+      });
+      if (i) bar.append(' · ');
+      bar.append(b);
+      return b;
+    });
+    list.before(bar);
+  }
+
   // ---------- older years load in place when opened ----------
   for (const d of $$('details.year')) {
     d.addEventListener('toggle', async () => {

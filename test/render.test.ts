@@ -61,6 +61,13 @@ test('ACTIVITY_SECTIONS leaves parts of the page out', () => {
   assert.ok(site({ ACTIVITY_SECTIONS: 'feed,habits' })['index.html'].includes('class="habits"'));
 });
 
+test('repo rows carry what the sort toggle needs; the lists are sortable, favorites are not', () => {
+  const html = site({ ACTIVITY_FAVORITES: 'big/upstream' })['index.html'];
+  assert.match(html, /<div class="proj" data-filter="fixture-owner\/tool" data-score="[\d.]+" data-last="2026-11-20T07:30:00Z" data-total="2">/);
+  assert.equal((html.match(/<div class="repos" data-sortable>/g) ?? []).length, 2, 'My projects and Contributing to');
+  assert.ok(!/<h2>Favorites<\/h2>\s*<div class="repos" data-sortable>/.test(html), 'favorites keep the owner\'s order');
+});
+
 test('the main page (snapshot)', (t) => {
   t.assert.snapshot(site()['index.html']);
 });

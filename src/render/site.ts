@@ -129,7 +129,7 @@ function projectsPanel(m: Model) {
 <h2>Projects</h2>
 ${p.favorites.length ? h`<h2>Favorites</h2>${p.favorites.map(r => repoRow(m, r, 'depth'))}` : null}
 <h2>My projects</h2>
-${p.mine.map(r => repoRow(m, r, 'depth'))}
+<div class="repos" data-sortable>${p.mine.map(r => repoRow(m, r, 'depth'))}</div>
 ${p.idleForks ? h`<p class="note">${p.idleForks} forks without work of yours aren't listed; forks you've worked in count on their upstream's row under Contributing to.</p>` : null}
 </section>`;
 }
@@ -142,14 +142,14 @@ function contributingPanel(m: Model) {
 <div class="kpis"><div><span class="n">${c.repos}</span><span class="l">repos</span></div><div><span class="n">${c.owners}</span><span class="l">owners and orgs</span></div><div><span class="n">${c.firstYear}</span><span class="l">first contribution</span></div></div>
 ${perYear(c.perYear)}
 <div class="axis"><span></span>${axisSvg(from, to)}</div>
-${c.rows.map(r => repoRow(m, r, 'breadth', [from, to]))}
+<div class="repos" data-sortable>${c.rows.map(r => repoRow(m, r, 'breadth', [from, to]))}</div>
 </section>`;
 }
 function repoRow(m: Model, r: RepoRow, mode: 'depth' | 'breadth', axis?: [number, number]) {
   const counts = ([['commits', 'commit'], ['prs', 'pull request'], ['issues', 'issue'], ['discussions', 'discussion']] as const)
     .filter(([k]) => mode === 'depth' || r.counts[k]).map(([k, l], i) => h`${i ? ' · ' : ''}<b>${r.counts[k]}</b> ${l}${r.counts[k] === 1 ? '' : 's'}`);
   const filter = [r.repo, ...r.forks].join(' ');
-  return h`<div class="proj${mode === 'breadth' ? ' wide' : ''}" data-filter="${filter}">
+  return h`<div class="proj${mode === 'breadth' ? ' wide' : ''}" data-filter="${filter}" data-score="${r.score.toFixed(3)}" data-last="${r.lastActive ?? ''}" data-total="${r.total}">
 <div><a class="name" href="${r.url}">${short(m, r.repo)}</a>${r.licence ? h`<span class="badge">${r.licence}</span>` : null}${r.archived ? h`<span class="badge">archived</span>` : null}${r.forkOf ? h`<span class="badge">fork of ${r.forkOf}</span>` : null}${r.upstreamDeleted ? h`<span class="badge">fork of a deleted repo</span>` : null}${r.stars ? h`<span class="muted small"> ★ ${r.stars.toLocaleString('en-US')}</span>` : null}${r.forks.length ? h`<span class="muted small"> · incl. commits in <a href="https://github.com/${r.forks[0]}">your fork</a></span>` : null}</div>
 ${r.description ? h`<div class="small">${r.description}</div>` : null}
 <div class="counts">${counts} · last active ${r.lastActive ? time(m, r.lastActive) : '—'}</div>

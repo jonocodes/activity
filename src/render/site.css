@@ -31,6 +31,9 @@ body.js-tabs [data-panel] > h2:first-child { display: none; }
 .filter { background: var(--card); border: 1px solid var(--line); padding: 4px 10px; border-radius: 6px; font-size: .85em; margin: 6px 0; }
 .filter button, .in-feed { background: none; border: none; color: var(--accent); cursor: pointer; font: inherit; padding: 0; }
 .in-feed { font-size: .75em; margin-left: 8px; }
+.sort { font-size: .8em; color: var(--muted); margin: 4px 0; }
+.sort button { background: none; border: none; padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
+.sort button.on { color: var(--fg); font-weight: 600; cursor: default; }
 ul.rows { list-style: none; margin: 0; padding: 0; }
 .row { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; padding: 3px 0; align-items: baseline; }
 .row .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

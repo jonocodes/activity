@@ -174,3 +174,24 @@ test('years active count from the earliest dated work, even from before the acco
   assert.equal(buildModel(db, settings(), NOW).profile.yearsActive, 17, 'Jun 2009 to Nov 2026 is 17 whole years');
   assert.equal(buildModel(emptyDb(), settings(), NOW).profile.yearsActive, 0, 'no work yet');
 });
+
+test('repo lists are ordered by Top: a lot of work, weighted towards recent (each item halves in weight every year)', () => {
+  const db = emptyDb(); own(db, 'busy-last-year'); own(db, 'touched-today'); own(db, 'huge-but-ancient');
+  for (let i = 0; i < 40; i++) commit(db, `${OWNER}/busy-last-year`, `2025-12-${String(1 + (i % 28)).padStart(2, '0')}T10:00:00Z`);
+  commit(db, `${OWNER}/touched-today`, '2026-11-25T10:00:00Z');
+  for (let i = 0; i < 200; i++) commit(db, `${OWNER}/huge-but-ancient`, `2014-03-${String(1 + (i % 28)).padStart(2, '0')}T10:00:00Z`);
+  const mine = buildModel(db, settings(), NOW).projects.mine;
+  assert.deepEqual(mine.map(r => r.repo.split('/')[1]), ['busy-last-year', 'touched-today', 'huge-but-ancient']);
+  const [busy, today, ancient] = mine;
+  assert.equal(busy.total, 40);
+  assert.ok(busy.score > 18 && busy.score < 24, `40 commits about a year old count about half each (${busy.score})`);
+  assert.ok(today.score > 0.99 && today.score <= 1, `today's commit counts fully (${today.score})`);
+  assert.ok(ancient.score < 0.1, `200 commits from 12 years ago count for almost nothing (${ancient.score})`);
+});
+
+test('Contributing to is ordered by Top too', () => {
+  const db = emptyDb();
+  item(db, 'pr', 'one/drive-by', '2026-11-20T10:00:00Z');
+  for (let i = 1; i <= 9; i++) item(db, 'issue', 'regular/project', `2026-0${i}-10T10:00:00Z`);
+  assert.deepEqual(buildModel(db, settings(), NOW).contributing.rows.map(r => r.repo), ['regular/project', 'one/drive-by']);
+});
