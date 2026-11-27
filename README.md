@@ -4,7 +4,7 @@ One static page with all your public GitHub activity: commits (including other p
 
 GitHub spreads this across the profile graph, the repositories tab, search and per-repo views, each with its own time window. Discussions only show up in search, and the activity feed forgets after 30 days. This puts it all on one page that you host yourself.
 
-**Status: designed, not built yet.** See [docs/design.md](docs/design.md).
+**Live example:** https://jonocodes.github.io/activity/ (the author's page, rebuilt hourly). Design and decisions: [docs/design.md](docs/design.md).
 
 ![Prototype: the Projects view, with real data](docs/img/variant-b-projects.png)
 
@@ -70,7 +70,7 @@ Copy `.env.example` to `.env` and set `GH_PAT` and `ACTIVITY_USER` to run agains
 - `just update-snapshots` accepts an intended change to the rendered page's snapshot;
 - `just record-fixtures` does the same and saves every API exchange to `test/fixtures/recorded/github.json.gz`, which the tests replay. It refuses to save if any response holds private data, so use the public-only token.
 
-**Status:** build steps 1–5 are built: the skeleton, the GitHub collector (`src/github/`), settings and the render model (`src/settings.ts`, `src/model.ts`), the renderer (`src/render/`), and the workflows (`.github/workflows/`). The author's page goes live once Pages and the `GH_PAT` secret are set up.
+**Status:** v1 (build steps 1–5) is built and live: the author's page is https://jonocodes.github.io/activity/, rebuilt hourly. The collector is in `src/github/`, settings and the render model in `src/settings.ts` and `src/model.ts`, the renderer in `src/render/`, and the workflows in `.github/workflows/`.
 
 ## Docs
 
