@@ -75,7 +75,7 @@ Fetch once, then iterate on the page as often as you like; run `just collect` ag
 
 ### Later: the state store
 
-Not in v1 (decided 2026-11-24). The plan: keep `state.db` between runs, so a run fetches only what's new and never deletes an item that disappeared from GitHub (it marks it gone). Nearly everything on the page can be fetched again on every run; the store matters only for things GitHub forgets, and for speed.
+Not in v1 (decided 2026-11-24; the discussion, measurements and pros and cons are in [research-state-store.md](research-state-store.md)). The plan: keep `state.db` between runs, so a run fetches only what's new and never deletes an item that disappeared from GitHub (it marks it gone). Nearly everything on the page can be fetched again on every run; the store matters only for things GitHub forgets, and for speed.
 
 | Data | Re-fetchable any time? | What a stored copy adds | Value |
 |---|---|---|---|

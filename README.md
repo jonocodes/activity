@@ -80,6 +80,8 @@ Copy `.env.example` to `.env` and set `GH_PAT` and `ACTIVITY_USER` to run agains
   - API limits, with live measurements;
   - existing tools (github-readme-stats, lowlighter/metrics, archive-style projects) and why they fall short.
 - A throwaway prototype of the v1 page on your real public data: `just prototype` fetches it (with your local `gh` login, dropping anything private) and serves the page on http://localhost:8137. The data file is gitignored.
+- [docs/research-state-store.md](docs/research-state-store.md): whether to keep the database between runs, with real numbers from the 30-day Events API, the storage options, and the pros and cons (leaning: not yet).
+- [docs/research-actions-cache.md](docs/research-actions-cache.md): the GitHub Actions cache, considered and rejected as a store.
 - The earlier prototype of the three views is under the [`archive/prototype-views`](https://github.com/jonocodes/activity/tree/archive/prototype-views) tag.
 
 ## License
