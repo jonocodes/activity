@@ -164,12 +164,12 @@ ${perYear(c.perYear)}
 }
 function repoRow(m: Model, r: RepoRow, mode: 'depth' | 'breadth', axis?: [number, number]) {
   const counts = ([['commits', 'commit'], ['prs', 'pull request'], ['issues', 'issue'], ['discussions', 'discussion']] as const)
-    .filter(([k]) => mode === 'depth' || r.counts[k]).map(([k, l], i) => h`${i ? ' · ' : ''}<b>${r.counts[k]}</b> ${l}${r.counts[k] === 1 ? '' : 's'}`);
+    .filter(([k]) => r.counts[k] > 0).map(([k, l]) => h`<b>${r.counts[k]}</b> ${l}${r.counts[k] === 1 ? '' : 's'} · `);   // counts of zero are left out
   const filter = [r.repo, ...r.forks].join(' ');
   return h`<div class="proj${mode === 'breadth' ? ' wide' : ''}" data-filter="${filter}" data-score="${r.score.toFixed(3)}" data-last="${r.lastActive ?? ''}" data-total="${r.total}">
 <div><a class="name" href="${r.url}">${short(m, r.repo)}</a>${r.licence ? h`<span class="badge">${r.licence}</span>` : null}${r.archived ? h`<span class="badge">archived</span>` : null}${r.forkOf ? h`<span class="badge">fork of ${r.forkOf}</span>` : null}${r.upstreamDeleted ? h`<span class="badge">fork of a deleted repo</span>` : null}${r.stars ? h`<span class="muted small"> ★ ${r.stars.toLocaleString('en-US')}</span>` : null}${r.forks.length ? h`<span class="muted small"> · incl. commits in <a href="https://github.com/${r.forks[0]}">your fork</a></span>` : null}</div>
 ${r.description ? h`<div class="small">${r.description}</div>` : null}
-<div class="counts">${counts} · last active ${r.lastActive ? time(m, r.lastActive) : '—'}</div>
+<div class="counts">${counts}last active ${r.lastActive ? time(m, r.lastActive) : '—'}</div>
 <div class="chart">${mode === 'depth' ? monthBars(r.monthly) : dotStrip(m, r, axis!)}</div>
 </div>`;
 }

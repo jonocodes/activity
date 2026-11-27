@@ -79,6 +79,12 @@ test('the heatmap is labelled: heading, months, weekdays, a key, and readable to
   assert.match(files['2023/index.html'], /<h4>Contributions in 2023<\/h4>/, 'year pages too');
 });
 
+test('repo rows leave out counts of zero', () => {
+  const html = site()['index.html'];
+  assert.ok(!html.includes('<b>0</b>'), 'no "0 pull requests", "0 issues" or "0 discussions"');
+  assert.match(html, /<div class="counts"><b>2<\/b> commits · last active /, 'a repo with only commits shows just its commits');
+});
+
 test('the main page (snapshot)', (t) => {
   t.assert.snapshot(site()['index.html']);
 });

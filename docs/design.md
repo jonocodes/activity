@@ -152,7 +152,7 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
   - the heatmap of the last 12 months, labelled (months, weekdays, a key, tooltips on hover and tap);
   - three tabs:
     - Feed;
-    - Projects: Favorites (if set, in the owner's order), then My projects (favorites left out): own repos that aren't forks, with a licence badge, archived ones marked, plus adopted forks marked "fork of …" and forks whose upstream was deleted, marked as such;
+    - Projects: Favorites (if set, in the owner's order), then My projects (favorites left out; on every repo row, here and on Contributing to, counts of zero are left out): own repos that aren't forks, with a licence badge, archived ones marked, plus adopted forks marked "fork of …" and forks whose upstream was deleted, marked as such;
     - Contributing to: headline numbers (external repos, owners and orgs, first year), a column chart of external repos worked in per year, then external repos most recent first, each row with description, stars, licence, the owner's commits, pull requests, issues and discussions there (including commits in the owner's fork of it, linked, unless that fork is adopted), and a dot per item on a timeline shared by all rows;
   - older years as collapsed sections, each loading that year's pre-built fragment when opened (or, without JavaScript, linking to the year's own page): its totals, heatmap and most active repos, then its items;
   - on each Projects row, the owner's commits per month over the last 24 months as columns;
