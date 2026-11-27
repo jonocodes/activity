@@ -14,7 +14,7 @@ Designed 2026-11-23 to 2026-11-24, before any code, and revised on 2026-11-24 af
 | Public repo, run hourly in GitHub Actions | Public repos get free Actions minutes. Every run shows in the Actions tab and can be started by hand (`workflow_dispatch`) |
 | Host on GitHub Pages, deployed straight from the workflow | Code, schedule, logs and site in one place. Deploys need no commits |
 | The page is pre-rendered HTML; it never queries a database | The views are simple filters and groupings over a few thousand public items. The renderer reads the data inside the Action and writes finished HTML: no data file to fetch, no sql.js |
-| One page with the full history | Measured: every public item pre-rendered is about 0.7 MB raw but about 60 KB compressed, since repeated markup compresses roughly 10×. Allow up to about 1.5 MB / 150 KB as commits fill in. Older years sit in collapsed sections |
+| **The main page holds the last 12 months; each older year is its own static page, fetched when opened** (2026-11-26, revised after measuring) | Measured on the author's data: the full history pre-rendered is about 2 MB raw, 247 KB compressed, 1,500 feed rows, which is about 5 s on a slow mobile connection, and it grows every year. The last 12 months alone is 128 KB compressed and 700 rows. Every count and chart is worked out at build time, so the main page doesn't need older items' details. Opening an older year's section fetches its pre-built fragment; without JavaScript the section links to the year's own page (`/2017/`), which is also shareable. Still plain files on Pages: no server, no API. If the last 12 months gets too long for phones, the same split can apply again (for example the latest 3 months plus the rest of the year) |
 | No live fetch from GitHub in the browser | Events take 30 s to 6 h to appear, so it's barely fresher than hourly |
 | **v1 collects public data only; private repos are a later feature** (2026-11-24) | Privacy is the hard requirement, and the rules for showing private work had many unresolved edge cases. With a token that can only read public data, the build never sees anything private, so nothing private can leak: the token enforces it, not the code. Cost: the author's current private work isn't recorded until the feature exists. See [Future: private repos](#future-private-repos) |
 | The collector also drops anything marked private, whatever the token can see | Defence in depth: someone forking may paste a token with the `repo` scope. Dropped items are counted in the log, never named |
@@ -151,13 +151,14 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
     - Feed;
     - Projects: Favorites (if set, in the owner's order), then My projects (favorites left out): own repos that aren't forks, with a licence badge, archived ones marked, plus adopted forks marked "fork of …" and forks whose upstream was deleted, marked as such;
     - Contributing to: headline numbers (external repos, owners and orgs, first year), a column chart of external repos worked in per year, then external repos most recent first, each row with description, stars, licence, the owner's commits, pull requests, issues and discussions there (including commits in the owner's fork of it, linked, unless that fork is adopted), and a dot per item on a timeline shared by all rows;
-  - older years in collapsed sections, each opening with that year's totals, heatmap and most active repos;
+  - older years as collapsed sections, each loading that year's pre-built fragment when opened (or, without JavaScript, linking to the year's own page): its totals, heatmap and most active repos, then its items;
   - on each Projects row, the owner's commits per month over the last 24 months as columns;
   - a footer saying when the page was last updated.
 
   It's pre-rendered, with a little JavaScript for the filter chips, the tabs and item ages.
 - **Theme:** a neutral default that follows the system light/dark setting. No theme setting.
-- **Narrow screens:** side-by-side blocks (the two overview bar lists) stack into one column on a phone. The prototype showed the bars shrinking to nothing at phone width.
+- **Narrow screens:** side-by-side blocks stack into one column on a phone: the two overview bar lists, and each Contributing to row, whose timeline moves under the text at full width. The prototype showed the bars vanishing and the timelines running off the screen at phone width.
+- **Year pages:** `/<year>/` holds one older year (summary, heatmap, items), linked from the main page and to the neighbouring years.
 - **URL:** `<user>.github.io/activity/` or a custom domain. For the author, `activity.dgt.is`: the blog is a separate Pages project on `www.dgt.is`, so the page can't sit at `www.dgt.is/activity/`. The blog menu links to it.
 - **Feed:**
   - item kinds: commits, pull requests, issues, discussions, discussion replies, reviews, new repos and forks. Issue and commit comments are collected but hidden unless `ACTIVITY_FEED_COMMENTS` is on;
@@ -235,6 +236,8 @@ A dedicated token, stored as the `GH_PAT` Actions secret: a fine-grained PAT wit
 **Expiry: one year or less** (found 2026-11-26). Some organizations and enterprises (`cypht-org`, NixOS) forbid fine-grained tokens with a lifetime over 366 days, even for reading public data. The first recording failed on the owner's forks of their repos with a FORBIDDEN error. The collector keeps failing the run on it, since the error names the fix and tolerating it would mislabel those forks; the cost is renewing the token yearly.
 
 Checked in build step 2 (2026-11-26): every query works with this token, and the anonymous private total (`restrictedContributionsCount`) still comes through.
+
+**Renewal reminders:** GitHub's own expiry emails are enough (decided 2026-11-26). The tool doesn't add its own; an expired token fails the run, and GitHub emails about that too.
 
 ## Testing
 

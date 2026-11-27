@@ -30,6 +30,7 @@
   .axis { display:grid; grid-template-columns: 1fr 300px; margin-top: 8px; } .axis svg { overflow: visible; }
   .proj.wide { grid-template-columns: 1fr 300px; } .owner { font-size:.8em; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin: 16px 0 0; }
   .proto { font-size:.75em; color:#b35900; margin: 4px 0; } .proto a { color:#b35900; text-decoration: underline; }
+  svg.tl { width: 100%; max-width: 300px; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
   a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
@@ -73,7 +74,7 @@
   .yr { border-top: 2px solid var(--line); margin-top: 26px; padding-top: 8px; }
   .yr .head { display:flex; align-items: baseline; gap: 14px; flex-wrap:wrap; } .yr .head .big { font-size: 2em; font-weight: 700; }
   .yr .cols { display:grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  @media (max-width: 760px) { .side { grid-template-columns: 1fr; } .side aside { position: static; max-height:none; } .yr .cols { grid-template-columns: 1fr; } .row { grid-template-columns: 90px 1fr auto; } details.group .inner { margin-left: 0; } }
+  @media (max-width: 760px) { svg.tl { max-width: none; } .row { grid-template-columns: auto 1fr auto !important; } .proj.wide, .axis, .overview { grid-template-columns: 1fr; } .proj.wide .spark { grid-row: auto; grid-column: 1; margin-top: 6px; } .axis > span { display: none; } .side { grid-template-columns: 1fr; } .side aside { position: static; max-height:none; } .yr .cols { grid-template-columns: 1fr; } .row { grid-template-columns: 90px 1fr auto; } details.group .inner { margin-left: 0; } }
   /* prototype switcher: not part of the design */
   #pbar { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background:#111; color:#fff; border-radius: 999px; padding: 6px 8px; display:flex; gap:10px; align-items:center; box-shadow: 0 4px 18px rgba(0,0,0,.35); font: 13px system-ui; z-index: 9; }
   #pbar button { background:#333; color:#fff; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; font-size: 14px; }
@@ -87,7 +88,9 @@
 (async () => {
 const P = new URLSearchParams(location.search);
 const TZ = P.get('tz') || Intl.DateTimeFormat().resolvedOptions().timeZone;
-const D = await (await fetch('data.json')).json();
+// the main page's data; each older year is fetched from years/<y>.json when opened (prototype/split-data.mjs)
+const D = await fetch('data-main.json').then(r => r.ok ? r.json() : fetch('data.json').then(r => r.json()));
+const yearFile = y => fetch(`years/${y}.json`).then(r => r.json());
 const ME = D.profile.login, NOW = Date.now();
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const LABEL = { commit:'commit', pr:'pull request', issue:'issue', discussion:'discussion', discussion_reply:'reply', review:'review', new_repo:'new repo', fork:'fork', issue_comment:'comment', commit_comment:'commit comment' };
@@ -200,13 +203,13 @@ function monthBars(months, w = 150, h = 26) {
 function dotStrip(its, from, to, w = 300, h = 18) {
   const x = t => ((new Date(t) - from) / (to - from)) * (w - 8) + 4;
   const dots = its.map(it => `<circle cx="${x(it.at).toFixed(1)}" cy="${h / 2}" r="4" fill="var(--viz)" fill-opacity=".75" stroke="var(--bg)" stroke-width="1"><title>${LABEL[it.kind]} · ${dateLabel(it.at)} · ${esc(it.title)}</title></circle>`).join('');
-  return `<svg width="${w}" height="${h}"><line x1="0" x2="${w}" y1="${h / 2}" y2="${h / 2}" stroke="var(--line)"/>${dots}</svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" class="tl" style="height:auto;display:block"><line x1="0" x2="${w}" y1="${h / 2}" y2="${h / 2}" stroke="var(--line)"/>${dots}</svg>`;
 }
 function axisRow(from, to, w = 300) {
   const y0 = new Date(from).getUTCFullYear(), y1 = new Date(to).getUTCFullYear(), step = Math.ceil((y1 - y0 + 1) / 7);
   const x = t => ((t - from) / (to - from)) * (w - 8) + 4;
   let ticks = ''; for (let y = y0 + 1; y <= y1; y += step) ticks += `<text x="${x(Date.UTC(y, 0, 1)).toFixed(1)}" y="10" font-size="10" fill="var(--muted)" text-anchor="middle">${y}</text>`;
-  return `<div class="axis"><span></span><svg width="${w}" height="14">${ticks}</svg></div>`;
+  return `<div class="axis"><span></span><svg viewBox="0 0 ${w} 14" class="tl" style="height:auto;display:block;overflow:visible">${ticks}</svg></div>`;
 }
 // breadth over time: how many different external repos the owner worked in each year (one hue, columns)
 function reposPerYear(ext) {
@@ -299,9 +302,27 @@ function VariantA() {
     app.querySelectorAll('.chip').forEach(b => b.onclick = () => { const k = b.dataset.k; state.on.has(k) ? state.on.delete(k) : state.on.add(k); draw(); });
     app.querySelectorAll('.proj .name').forEach(b => b.onclick = () => { state.repo = b.dataset.repo; state.tab = 'feed'; draw(); scrollTo(0, 0); });
     app.querySelector('#clear')?.addEventListener('click', e => { e.preventDefault(); state.repo = null; draw(); });
-    app.querySelectorAll('details.year').forEach(d => d.addEventListener('toggle', () => { const b = d.querySelector('.body'); if (d.open && !b.innerHTML) { const y = d.dataset.y, its = older.filter(i => yearOf(i.at) === y); b.innerHTML = yearSummary(y) + heatmap(D.years[y]?.calendar) + weeks(its); } }));
+    app.querySelectorAll('details.year').forEach(d => d.addEventListener('toggle', async () => {
+      const b = d.querySelector('.body'); if (!d.open || b.dataset.loaded) return;
+      const y = d.dataset.y; b.dataset.loaded = '1'; b.innerHTML = `<p class="muted small">Loading ${y}…</p>`;
+      const t0 = performance.now(), Y = await yearFile(y);
+      const full = [...Y.items, ...Y.commits.map(c => ({ kind: 'commit', at: c.at, repo: c.repo, title: c.msg, url: c.url }))]
+        .filter(i => state.on.has(i.kind) && (!state.repo || rowOf(i.repo) === state.repo)).sort((a, b) => b.at.localeCompare(a.at));
+      b.innerHTML = `<p class="proto">Prototype: loaded years/${y}.json on opening (${Math.round(performance.now() - t0)} ms). <a href="?year=${y}">Open ${y} on its own page</a></p>` + yearSummary(y) + heatmap(Y.calendar) + weeks(full);
+    }));
   };
   draw();
+}
+
+// ---------- a year on its own page (?year=2017): what a no-JavaScript visitor gets from the year link ----------
+async function YearPage(y) {
+  const app = document.getElementById('app');
+  app.innerHTML = `<div class="wrap"><p class="muted">Loading ${y}…</p></div>`;
+  const Y = await yearFile(y);
+  const full = [...Y.items, ...Y.commits.map(c => ({ kind: 'commit', at: c.at, repo: c.repo, title: c.msg, url: c.url }))].filter(i => DEFAULT_ON.includes(i.kind)).sort((a, b) => b.at.localeCompare(a.at));
+  const ys = D.split?.years ?? [], i = ys.indexOf(y);
+  app.innerHTML = `<div class="wrap"><p><a href="?">← ${esc(ME)} on GitHub</a>${ys[i - 1] ? ` · <a href="?year=${ys[i - 1]}">${ys[i - 1]}</a>` : ''}${ys[i + 1] ? ` · <a href="?year=${ys[i + 1]}">${ys[i + 1]}</a>` : ''}</p>
+    <h1>${y}</h1>${yearSummary(y)}${heatmap(Y.calendar)}${weeks(full)}${footer()}</div>`;
 }
 
 // ---------- switcher ----------
@@ -310,7 +331,8 @@ const show = k => { V[k][1](); document.getElementById('plabel').textContent = `
 const go = d => { const i = keys.indexOf(P.get('variant') || 'A'); const k = keys[(i + d + keys.length) % keys.length]; P.set('variant', k); history.replaceState(null, '', '?' + P); show(k); scrollTo(0, 0); };
 document.getElementById('prev').onclick = () => go(-1); document.getElementById('next').onclick = () => go(1);
 addEventListener('keydown', e => { if (e.target.closest('input,textarea,[contenteditable]')) return; if (e.key === 'ArrowLeft') go(-1); if (e.key === 'ArrowRight') go(1); });
-show(keys.includes(P.get('variant')) ? P.get('variant') : 'A');
+if (P.has('year')) { YearPage(P.get('year')); document.getElementById('plabel').textContent = `Year page ${P.get('year')}`; }
+else show(keys.includes(P.get('variant')) ? P.get('variant') : 'A');
 })();
 </script>
 </body>
