@@ -24,7 +24,7 @@ Designed 2026-11-23 to 2026-11-24, before any code, and revised on 2026-11-24 af
 | A template others fork; nobody edits code | Upstream never holds anyone's settings, so "Sync fork" never conflicts. The user defaults to the repo owner |
 | **Each commit is counted once, even when search finds it in several repos** (2026-11-24) | Commit search returns the same sha in a repo and again in every fork that contains it, which would count one commit several times. Keep one row per sha, credited to the repo that isn't a fork; if every hit is a fork, prefer the user's own fork. A commit that exists only in a fork stays credited to that fork, since it may never have been merged upstream |
 | Every stored item has a `source` (`github` first) | Hacker News is likely next, possibly custom (e.g. reading GoatCounter); Codeberg (Forgejo API) after that. Each source is a module writing to the same tables. A failing source keeps its last data and doesn't stop the run |
-| Combine all three prototype views | A stats strip (variant C) above a shared heatmap, then Feed (A) and Projects (B) tabs. Clicking a project filters the feed. Screenshots: [img/](img/) |
+| Combine all three prototype views | A stats strip (variant C) above a shared heatmap, then Feed (A) and Projects (B) tabs. Clicking a project filters the feed. Screenshots: `docs/img/` in the [`archive/prototype-views`](https://github.com/jonocodes/activity/tree/archive/prototype-views/docs/img) tag |
 | **Favorites, not GitHub pins** (2026-11-25) | The owner picks which repos to highlight, and in what order, with `ACTIVITY_FAVORITES`, independent of their GitHub pins. Unset means no Favorites section. Any repo can be a favorite, own or external. A favorite appears once: it's left out of the My projects list below it. Only a known public repo is shown (the collector fetches favorites' details too); anything else is skipped, since a row would link to a page visitors can't open, and the log counts it without a name, because logs are public and the name might be private |
 | **Three tabs: Feed, Projects, Contributing to** (2026-11-25) | The owner's own work and their work in other people's repos are different stories, so "Contributing to" gets its own tab instead of being a group inside Projects. Named "Contributing to", not "Contributions", because a contribution is GitHub's daily counted unit (see `GLOSSARY.md`), which includes own repos |
 | List public org memberships only (2026-11-24) | Memberships are private by default on GitHub; publishing them is a private-data choice, deferred with private repos. REST `/users/<user>/orgs` lists only public memberships whatever the token, and needs no scope |
@@ -79,7 +79,7 @@ Fetch once, then iterate on the page as often as you like; run `just collect` ag
 
 ### Later: the state store
 
-Not in v1 (decided 2026-11-24; the discussion, measurements and pros and cons are in [research-state-store.md](research-state-store.md)). The plan: keep `state.db` between runs, so a run fetches only what's new and never deletes an item that disappeared from GitHub (it marks it gone). Nearly everything on the page can be fetched again on every run; the store matters only for things GitHub forgets, and for speed.
+Not in v1 (decided 2026-11-24; tracked in [#2](https://github.com/jonocodes/activity/issues/2); the discussion, measurements and pros and cons are in [research-state-store.md](research-state-store.md)). The plan: keep `state.db` between runs, so a run fetches only what's new and never deletes an item that disappeared from GitHub (it marks it gone). Nearly everything on the page can be fetched again on every run; the store matters only for things GitHub forgets, and for speed.
 
 | Data | Re-fetchable any time? | What a stored copy adds | Value |
 |---|---|---|---|
@@ -162,7 +162,7 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
 - **Theme:** a neutral default that follows the system light/dark setting. No theme setting.
 - **Narrow screens:** side-by-side blocks stack into one column on a phone: the two overview bar lists, and each Contributing to row, whose timeline moves under the text at full width. The prototype showed the bars vanishing and the timelines running off the screen at phone width.
 - **Year pages:** `/<year>/` holds one older year (summary, heatmap, items), linked from the main page and to the neighbouring years.
-- **URL:** `<user>.github.io/activity/` or a custom domain. For the author, `activity.dgt.is`: the blog is a separate Pages project on `www.dgt.is`, so the page can't sit at `www.dgt.is/activity/`. The blog menu links to it.
+- **URL:** `<user>.github.io/activity/` or a custom domain. For the author, `activity.dgt.is` ([#9](https://github.com/jonocodes/activity/issues/9)): the blog is a separate Pages project on `www.dgt.is`, so the page can't sit at `www.dgt.is/activity/`. The blog menu links to it.
 - **Feed:**
   - item kinds: commits, pull requests, issues, discussions, discussion replies, reviews, new repos and forks. Issue and commit comments are collected but hidden unless `ACTIVITY_FEED_COMMENTS` is on;
   - groups: items of the same kind, in the same repo, on the same day (the owner's day) become one row, such as "7 commits" or "opened 12 issues", which expands to list them. Commits group from 2, other kinds from 3. The row sits at the time of its newest item;
@@ -174,7 +174,7 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
 - **Days and weeks are the owner's.** The page describes the owner's days, so `ACTIVITY_TIMEZONE` (an IANA name, default `UTC`) decides which day an item falls on. That covers collapsing same-day commits, the week headings, the year sections and the habits chart.
 - **No relative words baked into the HTML.** Each item renders as `<time datetime="2026-11-23T18:04:00Z">Nov 23</time>`, with the date in the owner's time zone. Without JavaScript that's what visitors see.
 - **Ages are durations, computed in the browser.** The script rewrites items under a week old as "12 min ago", "5 h ago" or "3 d ago", worked out when the page is viewed. A duration means the same in every time zone, so it can never contradict a week heading the way a calendar word like "yesterday" can.
-- **Hover shows the visitor's own time** (2026-11-27): `site.js` gives every date a tooltip with its exact time in the visitor's time zone ("Nov 19, 2026, 11:30 PM, your time"). Days, groups, weeks and streaks stay in the owner's zone: the page is built once for everyone, so they need one definition of a day, and the owner's reads like a diary.
+- **Hover shows the visitor's own time** (2026-11-27): `site.js` gives every date a tooltip with its exact time in the visitor's time zone ("Nov 19, 2026, 11:30 PM, your time"). Days, groups, weeks and active days stay in the owner's zone: the page is built once for everyone, so they need one definition of a day, and the owner's reads like a diary.
 - **The footer** shows when the page was built, so a stale page is obvious.
 - **The heatmap** uses GitHub's calendar as given. GitHub decides its day boundaries, so near midnight they may differ slightly from the feed's. That's acceptable.
 
@@ -238,16 +238,14 @@ Checked in build step 2 (2026-11-26): every query works with this token, and the
 - **Privacy test:** the fixtures include private items as a too-powerful token would return them, each carrying a canary string such as `CANARY-PRIVATE`. The test fails if a canary reaches `state.db`, `dist/` or the job's log output.
 - **A live smoke test,** run by hand or with `workflow_dispatch`.
 
-## Prototype
+## Prototypes
 
-The three views were prototyped as a throwaway page with real public data. The code is kept under the [`archive/prototype-views`](https://github.com/jonocodes/activity/tree/archive/prototype-views) tag (it was the `prototype/views` branch). Future prototypes go straight on `main`. It's a standalone `prototype/index.html`, switchable with `?variant=A|B|C` or the ← → keys.
+Both prototypes were throwaway pages on real public data, now removed from `main` and kept as tags:
 
-The same branch has the probe scripts behind the measurements:
-- `build_fixture.py`, with its GraphQL query in `q.graphql`;
-- `size_probe.py`;
-- `html_size.py`.
+- [`archive/prototype-views`](https://github.com/jonocodes/activity/tree/archive/prototype-views) (was the `prototype/views` branch): three variants of the page, switchable with `?variant=A|B|C` or the ← → keys, with screenshots in `docs/img/`. The author liked all three, which led to the combined layout. The same tag has the probe scripts behind the measurements: `build_fixture.py` (with its GraphQL query in `q.graphql`), `size_probe.py` and `html_size.py`.
+- [`archive/prototype-v1`](https://github.com/jonocodes/activity/tree/archive/prototype-v1) (removed 2026-11-27): a mockup of the v1 page in `prototype/`, served by `just prototype`, which settled favorites, adopted forks, the overview bars, the phone layout and loading years on demand. The real page replaced it.
 
-Verdict: the author liked all three, which led to the combined layout above.
+Future prototypes go straight on `main`, and get the same treatment when they're done.
 
 ## Build plan
 
@@ -263,22 +261,24 @@ Each step ends with tests passing and the README updated.
 3. **Settings from env vars,** validated; a render model; the privacy test (done 2026-11-26). The render model (`src/model.ts`) is a pure function of (database, settings, now) holding every display rule; the renderer only turns it into HTML.
 4. **Renderer** (done 2026-11-27): `src/render/` turns the model into `dist/`: `index.html` (last 12 months), `<year>/index.html` per older year, shared `site.css` and `site.js`, and `summary.json` (counts per kind, for the shrink guard). Every value from GitHub is escaped by the HTML builder by default. The page works without JavaScript (tabs are jump links, years are links, dates are plain); `site.js` adds tabs, filter chips, "in feed" per repo, ages, and loading a year in place. Snapshot-tested; the privacy test covers every file. Measured on the author's data: `index.html` about 1 MB raw, 155 KB compressed.
 5. **Workflow** (live 2026-11-27 at https://jonocodes.github.io/activity/): scheduled Action deploying to Pages, with the keep-alive, the failure rules and the shrink guard (`src/guard.ts`). First run: 5 min for the build job (225 API calls, 0 dropped as private), 8 s to deploy, 3,280 items.
-6. **Later:**
-   - [state store](#later-the-state-store): incremental fetching, the events archive, `gone_at`;
-   - [private repos](#future-private-repos);
-   - branch walk;
-   - Hacker News source;
-   - Codeberg source;
-   - custom domain.
+6. **Later,** one GitHub issue each (the [open issues](https://github.com/jonocodes/activity/issues) are the current list; this one is a snapshot from 2026-11-27):
+   - [state store](#later-the-state-store): incremental fetching, the events archive, `gone_at` ([#2](https://github.com/jonocodes/activity/issues/2));
+   - [private repos](#future-private-repos) ([#3](https://github.com/jonocodes/activity/issues/3));
+   - branch walk ([#6](https://github.com/jonocodes/activity/issues/6));
+   - Hacker News source ([#7](https://github.com/jonocodes/activity/issues/7));
+   - Codeberg source ([#8](https://github.com/jonocodes/activity/issues/8));
+   - custom domain ([#9](https://github.com/jonocodes/activity/issues/9));
+   - renewing the token, about 2027-02-25 ([#10](https://github.com/jonocodes/activity/issues/10));
+   - making it usable by other people: other accounts, what's too opinionated, fork or template ([#11](https://github.com/jonocodes/activity/issues/11)).
 
 ## Open questions
 
-- **Work for a past employer looks like contributing to someone else's project** (2026-11-25). The author's years at PLOS show up under Contributing to as 7 repos of a stranger, though it was their job. Possible answer: an owner-marked "work" org, shown as its own group ("Worked at PLOS, 2015–2018"). This overlaps with the `[[period]]` idea in [Future: private repos](#future-private-repos). Not for v1.
-- **Allow and deny lists for orgs and repos** (2026-11-25). The owner wants to include or exclude orgs and repos by name, for public repos now and private ones later. To design together with the private-repo rules. Not for v1.
+- **Work for a past employer looks like contributing to someone else's project** (2026-11-25). The author's years at PLOS show up under Contributing to as 7 repos of a stranger, though it was their job. Possible answer: an owner-marked "work" org, shown as its own group ("Worked at PLOS, 2015–2018"). This overlaps with the `[[period]]` idea in [Future: private repos](#future-private-repos). Not for v1. [#4](https://github.com/jonocodes/activity/issues/4)
+- **Allow and deny lists for orgs and repos** (2026-11-25). The owner wants to include or exclude orgs and repos by name, for public repos now and private ones later. To design together with the private-repo rules. Not for v1. [#5](https://github.com/jonocodes/activity/issues/5)
 
 ## Future: private repos
 
-Deferred on 2026-11-24. Everything here was designed before the review and needs a fresh decision before it's built. Build it while the author still has access to their current job's repos, or that history survives only in local clones.
+Deferred on 2026-11-24; tracked in [#3](https://github.com/jonocodes/activity/issues/3). Everything here was designed before the review and needs a fresh decision before it's built. Build it while the author still has access to their current job's repos, or that history survives only in local clones.
 
 ### What it would add
 

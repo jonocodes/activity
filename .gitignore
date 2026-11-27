@@ -2,9 +2,6 @@ node_modules/
 dist/
 state.db
 .env
-prototype/data.json
 .shots/
 .flox/
 .envrc
-prototype/data-main.json
-prototype/years/

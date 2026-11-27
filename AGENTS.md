@@ -1,8 +1,8 @@
 # Agent notes
 
-A forkable tool that builds one static page of a person's GitHub activity, hourly, in GitHub Actions. v1 is built and live (https://jonocodes.github.io/activity/); later work is listed in the build plan.
+A forkable tool that builds one static page of a person's GitHub activity, hourly, in GitHub Actions. v1 is built and live (https://jonocodes.github.io/activity/); later work lives in GitHub Issues, one issue each.
 
-Read [docs/design.md](docs/design.md) before any change. It is the source of truth for decisions, data sources, schema, rules and the **build plan** (work through it in order). [docs/research.md](docs/research.md) holds the API facts and limits behind each decision; check it before assuming how a GitHub API behaves.
+Read [docs/design.md](docs/design.md) before any change. It is the source of truth for decisions, data sources, schema, rules and the **build plan** (steps 1–5 are done; what's next is in the open issues). [docs/research.md](docs/research.md) holds the API facts and limits behind each decision; check it before assuming how a GitHub API behaves.
 
 ## Guardrails
 

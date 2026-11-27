@@ -47,6 +47,14 @@ _Avoid_: using it for items
 Several items of one kind, in one repo, on one day of the owner's, shown as a single row.
 _Avoid_: burst, batch, collapsed row
 
+**Active day**:
+A day, in the owner's time zone, with at least one contribution. The stats count them over the last 12 months.
+_Avoid_: streak (dropped: one quiet day resets it)
+
+**Top**:
+The default order of repo lists: each item in a repo adds a score that halves for every year of age (frecency), so recent and sustained work both rank high. The other orders are Recent (last active) and Most work (total items).
+_Avoid_: popular, best, ranked
+
 **Source**:
 Where items come from: GitHub first; Hacker News or Codeberg later.
 

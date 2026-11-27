@@ -1,16 +1,16 @@
 # activity
 
-One static page with all your public GitHub activity: commits (including other people's repos), repos you created and forked, issues, pull requests, discussions, pinned projects, public orgs, and a per-project breakdown. Private repos are left out for now; showing them is a planned feature.
+One static page with all your public GitHub activity: commits (including other people's repos), repos you created and forked, issues, pull requests, discussions, the projects you choose to feature, public orgs, and a per-project breakdown. Private repos are left out for now; showing them is a [planned feature](https://github.com/jonocodes/activity/issues/3).
 
 GitHub spreads this across the profile graph, the repositories tab, search and per-repo views, each with its own time window. Discussions only show up in search, and the activity feed forgets after 30 days. This puts it all on one page that you host yourself.
 
 **Live example:** https://jonocodes.github.io/activity/ (the author's page, rebuilt hourly). Design and decisions: [docs/design.md](docs/design.md).
 
-![Prototype: the Projects view, with real data](docs/img/variant-b-projects.png)
+<img src="docs/img/page-desktop.png" alt="The live page on a desktop: stats, licence and language bars, the contribution heatmap, and the feed" width="68%"> <img src="docs/img/page-phone.png" alt="The same page on a phone" width="28%">
 
-## How it will work
+## How it works
 
-- A GitHub Actions workflow in your fork runs hourly. It fetches your public activity from the GitHub API, renders one static HTML page, and deploys it to GitHub Pages. Each run fetches everything again (a few minutes); keeping data between runs, for speed and for history GitHub forgets, is planned for later.
+- A GitHub Actions workflow in your fork runs hourly. It fetches your public activity from the GitHub API, renders one static HTML page, and deploys it to GitHub Pages. Each run fetches everything again (a few minutes); keeping data between runs, for speed and for history GitHub forgets, [may come later](https://github.com/jonocodes/activity/issues/2).
 - Visitors get a plain static page. Nothing in the browser calls GitHub. The main page holds the last 12 months; each older year is its own small page, loaded only when you open that year, so the first load stays small on a phone.
 - The token can only read public data, so nothing private can end up on the page or in the public Actions logs.
 - Settings are Actions variables in your fork's settings, not files in the repo, and all of them are optional. You never edit code, so "Sync fork" keeps working.
@@ -84,10 +84,12 @@ Copy `.env.example` to `.env` and set `GH_PAT` and `ACTIVITY_USER` to run agains
   - what GitHub shows natively;
   - API limits, with live measurements;
   - existing tools (github-readme-stats, lowlighter/metrics, archive-style projects) and why they fall short.
-- A throwaway prototype of the v1 page on your real public data: `just prototype` fetches it (with your local `gh` login, dropping anything private) and serves the page on http://localhost:8137. The data file is gitignored.
 - [docs/research-state-store.md](docs/research-state-store.md): whether to keep the database between runs, with real numbers from the 30-day Events API, the storage options, and the pros and cons (leaning: not yet).
 - [docs/research-actions-cache.md](docs/research-actions-cache.md): the GitHub Actions cache, considered and rejected as a store.
-- The earlier prototype of the three views is under the [`archive/prototype-views`](https://github.com/jonocodes/activity/tree/archive/prototype-views) tag.
+- [Issues](https://github.com/jonocodes/activity/issues): future work (state store, private repos, more sources, and so on) and open questions, one issue each.
+- Archived prototypes, kept as git tags:
+  - [`archive/prototype-views`](https://github.com/jonocodes/activity/tree/archive/prototype-views): the first prototype, three variants of the page;
+  - [`archive/prototype-v1`](https://github.com/jonocodes/activity/tree/archive/prototype-v1): the mockup of the v1 page on real data (`just prototype`), replaced by the real page.
 
 ## License
 
