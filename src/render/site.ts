@@ -44,7 +44,7 @@ function mainBody(m: Model): Html {
 ${on('profile') ? profile(m) : null}
 ${on('stats') ? stats(m) : null}
 ${on('overview') ? overview(m) : null}
-${on('heatmap') ? h`<div aria-label="Contributions, last 12 months">${heatmap(m.heatmap)}</div>` : null}
+${on('heatmap') ? heatmap(m.heatmap, 'Contributions, last 12 months') : null}
 ${on('habits') ? habits(m) : null}
 ${tabs.length > 1 ? h`<nav class="tabs">${tabs.map(([id, label]) => h`<a href="#${id}">${label}</a>`)}</nav>` : null}
 ${on('feed') ? feedPanel(m) : null}
@@ -79,13 +79,33 @@ function habits(m: Model) {
   };
   return h`<div class="habits"><div class="chart"><h4>Weekdays</h4>${cols(m.habits.weekdays, ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])}</div><div class="chart"><h4>Hours</h4>${cols(m.habits.hours, m.habits.hours.map((_, i) => String(i).padStart(2, '0')))}</div></div>`;
 }
-function heatmap(days: { date: string; count: number }[]) {
+/** GitHub's contribution graph, labelled: a column per week, a row per weekday (Sunday on top), darker for more. */
+function heatmap(days: { date: string; count: number }[], title: string) {
   if (!days.length) return null;
-  const max = Math.max(1, ...days.map(d => d.count)), cell = 11, gap = 2, first = new Date(`${days[0].date}T00:00:00Z`).getUTCDay();
-  const rects = days.map((d, i) => { const idx = i + first, x = Math.floor(idx / 7) * (cell + gap), y = (idx % 7) * (cell + gap);
-    const op = d.count === 0 ? .08 : [.3, .5, .75, 1][Math.min(3, Math.floor(4 * Math.sqrt(d.count / max) - .001))];
-    return `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="2" fill="var(--heat)" fill-opacity="${op}"><title>${d.date}: ${d.count}</title></rect>`; }).join('');
-  return raw(`<svg class="heat" viewBox="0 0 ${Math.ceil((days.length + first) / 7) * (cell + gap)} ${7 * (cell + gap)}" role="img">${rects}</svg>`);
+  const cell = 11, step = 13, left = 28, top = 16;
+  const max = Math.max(1, ...days.map(d => d.count)), first = new Date(`${days[0].date}T00:00:00Z`).getUTCDay();
+  const level = (n: number) => n === 0 ? 0 : 1 + Math.min(3, Math.floor(4 * Math.sqrt(n / max) - .001));
+  const OPACITY = [.08, .3, .5, .75, 1];
+  const fmt = (d: string, o: Intl.DateTimeFormatOptions) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', ...o });
+  let svg = '', lastMonth = '', lastLabelCol = -9, lastCol = -1;
+  days.forEach((d, i) => {
+    const idx = i + first, col = Math.floor(idx / 7), row = idx % 7;
+    const tip = `${fmt(d.date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}: ${d.count} contribution${d.count === 1 ? '' : 's'}`;
+    svg += `<rect x="${left + col * step}" y="${top + row * step}" width="${cell}" height="${cell}" rx="2" fill="var(--heat)" fill-opacity="${OPACITY[level(d.count)]}" data-tip="${esc(tip)}"><title>${esc(tip)}</title></rect>`;
+    if (col !== lastCol) {   // the first day drawn in each week's column names the column's month
+      lastCol = col;
+      const month = d.date.slice(0, 7);
+      if (month !== lastMonth && col - lastLabelCol >= 3) {
+        svg += `<text x="${left + col * step}" y="10" font-size="10" fill="var(--muted)">${fmt(d.date, { month: 'short' })}</text>`;
+        lastLabelCol = col;
+      }
+      lastMonth = month;
+    }
+  });
+  for (const [row, label] of [[1, 'Mon'], [3, 'Wed'], [5, 'Fri']] as const) svg += `<text x="0" y="${top + row * step + 9}" font-size="10" fill="var(--muted)">${label}</text>`;
+  const cols = Math.ceil((days.length + first) / 7);
+  const key = OPACITY.map(o => `<i style="opacity:${o}"></i>`).join('');
+  return h`<div class="heatmap"><h4>${title}</h4><div class="heat-scroll">${raw(`<svg class="heat" viewBox="0 0 ${left + cols * step} ${top + 7 * step}" role="img" aria-label="${esc(title)}">${svg}</svg>`)}</div><div class="legend">less ${raw(key)} more</div></div>`;
 }
 
 // ---------- feed ----------
@@ -114,7 +134,7 @@ function yearPage(m: Model, y: YearSection, prev?: number, next?: number) {
 <h1>${y.year}</h1>
 <div id="year-body">
 <p class="muted small">${y.totals.contributions.toLocaleString('en-US')} contributions · ${y.totals.commits} commits · ${y.totals.prs} pull requests · ${y.totals.issues} issues · ${y.totals.discussions} discussions · ${y.totals.newRepos} new repos${y.mostActive.length ? h`<br>Most active in: ${y.mostActive.map((a, i) => h`${i ? ', ' : ''}<a href="https://github.com/${a.repo}">${short(m, a.repo)}</a> (${a.count})`)}` : null}</p>
-${heatmap(y.calendar)}
+${heatmap(y.calendar, `Contributions in ${y.year}`)}
 ${weeks(m, y.weeks.map(w => ({ ...w, rows: w.rows })))}
 </div>`;
 }

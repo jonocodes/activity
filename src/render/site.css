@@ -20,7 +20,12 @@ h3 { font-size: .8em; text-transform: uppercase; letter-spacing: .05em; color: v
 .meter .m { display: grid; grid-template-columns: 110px 1fr 44px; gap: 8px; align-items: center; font-size: .85em; padding: 1px 0; }
 .meter .bar { height: 8px; background: var(--viz-track); border-radius: 4px; overflow: hidden; } .meter .bar i { display: block; height: 100%; background: var(--viz); border-radius: 4px; }
 .meter .v { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
-svg.heat { width: 100%; height: auto; display: block; margin: 6px 0; }
+.heatmap { margin: 6px 0 10px; } .heatmap h4 { margin: 0 0 4px; font-size: .8em; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+.heat-scroll { overflow-x: auto; }
+svg.heat { width: 100%; height: auto; display: block; } svg.heat rect[data-tip] { cursor: pointer; }
+.legend { display: flex; align-items: center; justify-content: flex-end; gap: 3px; font-size: .75em; color: var(--muted); margin-top: 2px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--heat); }
+.tip { position: absolute; z-index: 5; background: var(--fg); color: var(--bg); font-size: .78em; padding: 3px 8px; border-radius: 4px; pointer-events: none; white-space: nowrap; transform: translate(-50%, -100%); margin-top: -6px; }
 nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 18px 0 8px; }
 nav.tabs a { padding: 8px 14px; color: var(--muted); border-bottom: 2px solid transparent; }
 nav.tabs a.on { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; text-decoration: none; }
@@ -65,5 +70,6 @@ footer { margin-top: 40px; font-size: .8em; color: var(--muted); }
   .overview, .habits, .proj.wide, .axis { grid-template-columns: 1fr; }
   .proj.wide .chart { grid-row: auto; grid-column: 1; margin-top: 6px; } .axis > span { display: none; }
   svg.tl { max-width: none; }
+  svg.heat { min-width: 640px; }
   .row, .row.group summary { grid-template-columns: auto 1fr auto; } .row.group ul { margin-left: 0; }
 }

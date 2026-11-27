@@ -91,6 +91,22 @@
     list.before(bar);
   }
 
+  // ---------- heatmap tooltips: on hover with a mouse, on tap with a finger ----------
+  const tip = document.createElement('div');
+  tip.className = 'tip'; tip.hidden = true; document.body.append(tip);
+  const showTip = (el) => {
+    const r = el.getBoundingClientRect();
+    tip.textContent = el.dataset.tip; tip.hidden = false;
+    const half = tip.offsetWidth / 2, x = Math.min(Math.max(r.left + r.width / 2, half + 4), innerWidth - half - 4);
+    tip.style.left = `${x + scrollX}px`; tip.style.top = `${r.top + scrollY}px`;
+  };
+  for (const s of $$('.heat-scroll')) s.scrollLeft = s.scrollWidth;
+  addEventListener('scroll', () => { tip.hidden = true; }, { capture: true, passive: true });
+  document.addEventListener('pointerover', e => { const el = e.target.closest?.('[data-tip]'); if (el && e.pointerType === 'mouse') showTip(el); });
+  document.addEventListener('pointerout', e => { if (e.target.closest?.('[data-tip]') && e.pointerType === 'mouse') tip.hidden = true; });
+  document.addEventListener('click', e => { const el = e.target.closest?.('[data-tip]'); if (el) showTip(el); else tip.hidden = true; });
+  for (const t of $$('svg.heat title')) t.remove();   // the tooltip replaces the browser's slow one
+
   // ---------- older years load in place when opened ----------
   for (const d of $$('details.year')) {
     d.addEventListener('toggle', async () => {

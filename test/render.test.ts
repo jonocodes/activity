@@ -68,6 +68,17 @@ test('repo rows carry what the sort toggle needs; the lists are sortable, favori
   assert.ok(!/<h2>Favorites<\/h2>\s*<div class="repos" data-sortable>/.test(html), 'favorites keep the owner\'s order');
 });
 
+test('the heatmap is labelled: heading, months, weekdays, a key, and readable tooltips', () => {
+  const files = site(), html = files['index.html'];
+  assert.match(html, /<h4>Contributions, last 12 months<\/h4>/);
+  assert.match(html, />Nov<\/text>/, 'month names along the top');
+  for (const d of ['Mon', 'Wed', 'Fri']) assert.match(html, new RegExp(`>${d}</text>`), `${d} down the side`);
+  assert.match(html, /<div class="legend">less .*more<\/div>/, 'a key from less to more');
+  assert.match(html, /data-tip="Fri, Nov 20, 2026: 2 contributions"/);
+  assert.match(html, /data-tip="Tue, Nov 24, 2026: 1 contribution"/, 'singular for one');
+  assert.match(files['2023/index.html'], /<h4>Contributions in 2023<\/h4>/, 'year pages too');
+});
+
 test('the main page (snapshot)', (t) => {
   t.assert.snapshot(site()['index.html']);
 });
