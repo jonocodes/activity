@@ -54,7 +54,7 @@ How the page decides what to show. The reasons behind each rule are in the Decis
 
 **Profile and stats**
 - The line under the title is just "N years of open source" and a link to your GitHub achievements. The years count whole years from your earliest dated work, which can be older than your GitHub account (imported history keeps its dates).
-- "Active days" is how many days in the last 12 months had any contribution, on GitHub's own calendar.
+- "Active days" is how many days in the last 12 months had any contribution, on GitHub's own calendar. Like your GitHub profile, that calendar (and the heatmap and contribution count) may include work in private repos as bare counts, if your profile shows private contributions; no private details reach the page.
 
 **When something goes wrong**
 - A run fails, and doesn't deploy, on an API error that persists after retries, or a GraphQL error. GitHub's commit search sometimes times out and reports incomplete results: the search is retried, then split into smaller date ranges, and the run only fails if a single day stays incomplete. A deleted repo is simply skipped.

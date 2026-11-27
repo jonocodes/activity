@@ -41,8 +41,6 @@ export interface Model {
     allTime: { commits: number; prs: number; issues: number; discussions: number; reposCreated: number };
     /** activeDays: days in the last 12 months with any contribution. */
     last12: { contributions: number; activeDays: number };
-    /** GitHub's anonymous count of private contributions, when it gives one. */
-    privateLast12: number | null;
   };
   overview: { licences: { name: string; count: number }[]; languages: { name: string; commits: number; share: number }[] };
   heatmap: { date: string; count: number }[];
@@ -151,7 +149,6 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
   const firstWork = [...all.map(i => i.at), ...calendar.filter(d => d.count > 0).map(d => `${d.date}T00:00:00Z`)].reduce<string | null>((m, t) => (!m || t < m ? t : m), null);
   const yearsActive = firstWork ? wholeYears(firstWork, now) : 0;
   const count = (k: Kind) => all.filter(i => i.kind === k).length;
-  const restricted = Number(meta.restricted_last_12_months ?? 0);
 
   // ---------- overview ----------
   const licences = new Map<string, number>();
@@ -180,7 +177,6 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
     stats: {
       allTime: { commits: count('commit'), prs: count('pr'), issues: count('issue'), discussions: count('discussion'), reposCreated: count('new_repo') },
       last12: { contributions: Number(meta.contributions_last_12_months ?? lastYearDays.reduce((s, d) => s + d.count, 0)), activeDays },
-      privateLast12: restricted > 0 ? restricted : null,
     },
     overview: {
       licences: [...licences].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name, count]) => ({ name, count })),

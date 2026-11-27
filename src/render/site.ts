@@ -60,7 +60,7 @@ function profile(m: Model) {
 function stats(m: Model) {
   const s = m.stats, n = (v: number, l: string) => h`<div><span class="n">${v.toLocaleString('en-US')}</span><span class="l">${l}</span></div>`;
   return h`<div class="stats">${n(s.allTime.commits, 'commits')}${n(s.allTime.prs, 'pull requests')}${n(s.allTime.issues, 'issues')}${n(s.allTime.discussions, 'discussions')}${n(s.allTime.reposCreated, 'repos created')}
-<div class="sep"></div>${n(s.last12.contributions, 'contributions, last 12 months')}${n(s.last12.activeDays, 'active days, last 12 months')}${s.privateLast12 ? n(s.privateLast12, 'private, last 12 months') : null}</div>`;
+<div class="sep"></div>${n(s.last12.contributions, 'contributions, last 12 months')}${n(s.last12.activeDays, 'active days, last 12 months')}</div>`;
 }
 const meterList = (title: string, entries: [string, number, string][]) => {
   const max = Math.max(1, ...entries.map(e => e[1]));
@@ -136,7 +136,7 @@ function contributingPanel(m: Model) {
   const axis = c.axis!, from = Date.parse(axis.from), to = Date.parse(axis.to);
   return h`<section id="contributing" data-panel>
 <h2>Contributing to</h2>
-<div class="kpis"><div><span class="n">${c.repos}</span><span class="l">repos</span></div><div><span class="n">${c.owners}</span><span class="l">owners and orgs</span></div><div><span class="n">${c.firstYear}</span><span class="l">first contribution</span></div></div>
+<div class="kpis"><div><span class="n">${c.repos}</span><span class="l">repos</span></div><div><span class="n">${c.owners}</span><span class="l">owners and orgs</span></div></div>
 ${perYear(c.perYear)}
 <div class="axis"><span></span>${axisSvg(from, to)}</div>
 <div class="repos" data-sortable>${c.rows.map(r => repoRow(m, r, 'breadth', [from, to]))}</div>

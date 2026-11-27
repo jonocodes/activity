@@ -130,7 +130,7 @@ test('stats: all-time counts, the last 12 months, active days, and the private c
   const s = buildModel(db, settings(), NOW).stats;
   assert.deepEqual(s.allTime, { commits: 2, prs: 1, issues: 1, discussions: 1, reposCreated: 1 });
   assert.deepEqual(s.last12, { contributions: 321, activeDays: 5 });
-  assert.equal(s.privateLast12, 12);
+  assert.ok(!('privateLast12' in s), 'the anonymous private count is not shown');
 });
 
 test('overview: licences of own repos that are not forks, and languages weighted by commits (top 6, then Other)', () => {
