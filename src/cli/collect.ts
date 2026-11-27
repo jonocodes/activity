@@ -5,16 +5,18 @@ import { openDatabase } from '../db.ts';
 import { createClient, fetchTransport, CollectError } from '../github/client.ts';
 import { collectGitHub } from '../github/collect.ts';
 import { recordingTransport, saveRecording } from '../github/record.ts';
+import { loadSettings, SettingsError } from '../settings.ts';
 
 const RECORDING = 'test/fixtures/recorded/github.json.gz';
 const record = process.argv.includes('--record');
-const dbPath = process.env.ACTIVITY_DB ?? 'state.db';
+const dbAt = process.argv.indexOf('--db');
+const dbPath = dbAt > 0 ? process.argv[dbAt + 1] : 'state.db';
 
 const token = process.env.GH_PAT;
-// Settings arrive properly in build step 3; until then the owner comes from ACTIVITY_USER or the Actions repo owner.
-const owner = process.env.ACTIVITY_USER || process.env.GITHUB_REPOSITORY_OWNER;
-if (!token) fail('GH_PAT is not set: a fine-grained token with "Public repositories (read-only)" access (see the README)');
-if (!owner) fail('set ACTIVITY_USER to the GitHub login to collect');
+let owner: string;
+try { owner = loadSettings(process.env).user; }
+catch (e) { if (e instanceof SettingsError) fail(e.problems.join('\n  ')); throw e; }
+if (!token) fail('GH_PAT is not set: a fine-grained token with "Public repositories (read-only)" access and an expiry of a year or less (see the README)');
 
 const recorder = record ? recordingTransport(fetchTransport) : null;
 const client = createClient({ transport: recorder?.transport ?? fetchTransport, token: token! });
