@@ -53,7 +53,7 @@ How the page decides what to show. The reasons behind each rule are in the Decis
 - Issue and commit comments are collected but hidden unless `ACTIVITY_FEED_COMMENTS` is on.
 
 **Profile and stats**
-- "N years of open source" counts whole years from your earliest dated work, which can be older than your GitHub account (imported history keeps its dates).
+- The line under the title is just "N years of open source" and a link to your GitHub achievements. The years count whole years from your earliest dated work, which can be older than your GitHub account (imported history keeps its dates).
 - "Active days" is how many days in the last 12 months had any contribution, on GitHub's own calendar.
 
 **When something goes wrong**

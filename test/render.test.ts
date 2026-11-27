@@ -38,7 +38,7 @@ test("dates are plain, in the owner's time zone, inside <time> for the browser t
   assert.match(html, /2 commits/);
   assert.ok(!/today|yesterday/i.test(html));
   assert.match(html, /Dates are in America\/Los_Angeles/);
-  assert.match(html, /<span>\d+ years of open source<\/span>/);
+  assert.match(html, /<p class="profile"><span>\d+ years of open source<\/span><span><a href="https:\/\/github.com\/fixture-owner\?tab=achievements">achievements<\/a><\/span><\/p>/, 'the profile line is only the years and achievements');
   assert.match(html, /active days, last 12 months/);
   assert.ok(!/streak|on GitHub since/.test(html));
 });

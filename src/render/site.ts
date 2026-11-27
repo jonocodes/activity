@@ -55,10 +55,7 @@ ${on('contributing') ? contributingPanel(m) : null}`;
 // ---------- top of the page ----------
 function profile(m: Model) {
   const p = m.profile;
-  return h`<p class="profile">${[
-    p.bio && h`<span>${p.bio}</span>`, p.yearsActive > 0 && h`<span>${p.yearsActive} year${p.yearsActive === 1 ? '' : 's'} of open source</span>`, p.location && h`<span>${p.location}</span>`, p.company && h`<span>${p.company}</span>`,
-    p.orgs.length > 0 && h`<span>orgs: ${p.orgs.map((o, i) => h`${i ? ', ' : ''}<a href="https://github.com/${o}">${o}</a>`)}</span>`,
-    h`<span><a href="${p.achievementsUrl}">achievements</a></span>`]}</p>`;
+  return h`<p class="profile">${[p.yearsActive > 0 && h`<span>${p.yearsActive} year${p.yearsActive === 1 ? '' : 's'} of open source</span>`, h`<span><a href="${p.achievementsUrl}">achievements</a></span>`]}</p>`;
 }
 function stats(m: Model) {
   const s = m.stats, n = (v: number, l: string) => h`<div><span class="n">${v.toLocaleString('en-US')}</span><span class="l">${l}</span></div>`;
