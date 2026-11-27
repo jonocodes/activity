@@ -3,13 +3,17 @@
 (() => {
   const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
-  // ---------- ages: items under a week old say how long ago, worked out now, in the visitor's browser ----------
+  // ---------- dates: hover shows the exact time in the visitor's own time zone; items under a week old say how long ago ----------
+  // Days, groups and weeks stay in the owner's time zone (built once for everyone); these two are right for every visitor.
+  const local = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   const ages = (root) => {
     const now = Date.now();
     for (const t of $$('time[datetime]', root)) {
+      if (t.dataset.done) continue;
+      t.dataset.done = '1';
+      t.title = `${local.format(new Date(t.dateTime))}, your time`;
       const s = (now - Date.parse(t.dateTime)) / 1000;
       if (s < 0 || s > 7 * 86400) continue;
-      t.title ||= t.textContent;
       t.textContent = s < 3600 ? `${Math.max(1, Math.round(s / 60))} min ago` : s < 86400 ? `${Math.floor(s / 3600)} h ago` : `${Math.floor(s / 86400)} d ago`;
     }
   };

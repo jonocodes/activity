@@ -48,7 +48,7 @@ How the page decides what to show. The reasons behind each rule are in the Decis
 
 **Feed and dates**
 - Which day an item falls on is decided by your time zone (`ACTIVITY_TIMEZONE`). Items of the same kind, in the same repo, on the same day become one expandable row: commits from 2, everything else from 3.
-- The page never says "today" or "yesterday". Dates are plain; items under a week old show their age ("5 h ago"), worked out in the visitor's browser.
+- Everything is stored in UTC. Days, groups, weeks and streaks follow your time zone, because the page is built once for every visitor. The page never says "today" or "yesterday": dates are plain, items under a week old show their age ("5 h ago"), and hovering a date shows its exact time in the visitor's own time zone.
 - Issue and commit comments are collected but hidden unless `ACTIVITY_FEED_COMMENTS` is on.
 
 **When something goes wrong**

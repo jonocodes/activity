@@ -171,6 +171,7 @@ Size: a few MB, mostly commits and line counts. Measured: 1568 public items made
 - **Days and weeks are the owner's.** The page describes the owner's days, so `ACTIVITY_TIMEZONE` (an IANA name, default `UTC`) decides which day an item falls on. That covers collapsing same-day commits, the week headings, the year sections and the habits chart.
 - **No relative words baked into the HTML.** Each item renders as `<time datetime="2026-11-23T18:04:00Z">Nov 23</time>`, with the date in the owner's time zone. Without JavaScript that's what visitors see.
 - **Ages are durations, computed in the browser.** The script rewrites items under a week old as "12 min ago", "5 h ago" or "3 d ago", worked out when the page is viewed. A duration means the same in every time zone, so it can never contradict a week heading the way a calendar word like "yesterday" can.
+- **Hover shows the visitor's own time** (2026-11-27): `site.js` gives every date a tooltip with its exact time in the visitor's time zone ("Nov 19, 2026, 11:30 PM, your time"). Days, groups, weeks and streaks stay in the owner's zone: the page is built once for everyone, so they need one definition of a day, and the owner's reads like a diary.
 - **The footer** shows when the page was built, so a stale page is obvious.
 - **The heatmap** uses GitHub's calendar as given. GitHub decides its day boundaries, so near midnight they may differ slightly from the feed's. That's acceptable.
 
