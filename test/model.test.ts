@@ -155,3 +155,14 @@ test('profile, heatmap and chip counts', () => {
   assert.deepEqual(m.heatmap.map(d => d.date), ['2025-11-26', '2026-11-25'], 'the last 12 months only');
   assert.equal(m.kindCounts.issue, 2, 'chips count every year');
 });
+
+test("habits: the owner's busiest weekdays and hours over the last 12 months, in their time zone", () => {
+  const db = emptyDb(); own(db, 'tool');
+  commit(db, `${OWNER}/tool`, '2026-11-24T05:30:00Z');   // Monday 21:30 in Los Angeles, Tuesday 05:30 in UTC
+  item(db, 'issue', 'a/b', '2026-11-24T06:10:00Z');      // Monday 22:10 in Los Angeles
+  item(db, 'issue', 'a/b', '2020-11-24T06:10:00Z');      // too old to count
+  const h = buildModel(db, settings(LA), NOW).habits;
+  assert.deepEqual(h.weekdays, [2, 0, 0, 0, 0, 0, 0]);
+  assert.equal(h.hours[21], 1); assert.equal(h.hours[22], 1);
+  assert.deepEqual(buildModel(db, settings(), NOW).habits.weekdays, [0, 2, 0, 0, 0, 0, 0]);
+});

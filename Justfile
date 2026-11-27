@@ -9,6 +9,10 @@ default:
 test:
     node --test 'test/**/*.test.ts'
 
+# Accept intended changes to the rendered page's snapshot
+update-snapshots:
+    node --test --test-update-snapshots 'test/**/*.test.ts'
+
 # Type-check without building (Node runs the .ts files directly)
 typecheck:
     npx tsc -p .
@@ -17,13 +21,13 @@ typecheck:
 collect:
     node src/cli/collect.ts
 
-# Render dist/index.html from state.db (build step 4)
-render:
-    @echo "Not built yet: build step 4 in docs/design.md" && exit 1
+# Render dist/ from state.db (add --from-recording to use the recorded fixture, no token needed)
+render *args:
+    node src/cli/render.ts {{args}}
 
-# Re-render on every save and serve dist/ (build step 4)
-dev:
-    @echo "Not built yet: build step 4 in docs/design.md" && exit 1
+# Serve dist/ on http://localhost:8139 and re-render when src/ changes (add --tailnet to reach it from your phone)
+dev *args:
+    node --watch-path=src --watch-preserve-output src/cli/dev.ts {{args}}
 
 # Refresh the recorded API fixtures from the live API (needs a public-only GH_PAT; refuses to save anything private)
 record-fixtures:

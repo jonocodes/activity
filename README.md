@@ -24,7 +24,7 @@ GitHub spreads this across the profile graph, the repositories tab, search and p
 
 ## Methodology
 
-How the page decides what to show. The reasons behind each rule are in the Decisions table of [docs/design.md](docs/design.md). The collection rules and the display rules are built (`src/github/`, `src/model.ts`); the page itself arrives with the renderer (build step 4).
+How the page decides what to show. The reasons behind each rule are in the Decisions table of [docs/design.md](docs/design.md). All of these rules are built: collection in `src/github/`, display in `src/model.ts`.
 
 **What's collected**
 - Public activity only. The token can only read public data, and anything marked private is dropped on arrival anyway, in case a token can see more. The log reports how many items were dropped, never their names.
@@ -62,11 +62,12 @@ Copy `.env.example` to `.env` and set `GH_PAT` and `ACTIVITY_USER` to run agains
 - `just test` runs the offline tests (`node:test`, TypeScript run directly, no build step);
 - `just typecheck` type-checks;
 - `just collect` fetches your public data into `state.db` (a few minutes; mostly commit search, which allows 30 requests a minute). It prints counts only, never titles, and drops anything private;
-- `just render` builds `dist/index.html` from it in under a second, with no network (build step 4);
-- `just dev` re-renders on every save, so you can iterate on the page without fetching again (build step 4);
+- `just render` builds `dist/` from `state.db` in about a second, with no network; `just render --from-recording` builds it from the recorded fixture instead, so it needs no token;
+- `just dev` serves `dist/` on http://localhost:8139 and re-renders whenever a file in `src/` changes (from `state.db`, else the recording). Add `--tailnet` to reach it from your phone over Tailscale;
+- `just update-snapshots` accepts an intended change to the rendered page's snapshot;
 - `just record-fixtures` does the same and saves every API exchange to `test/fixtures/recorded/github.json.gz`, which the tests replay. It refuses to save if any response holds private data, so use the public-only token.
 
-**Status:** build steps 1–3 are done: the skeleton, the GitHub collector (`src/github/`, tested against a fake GitHub and a recording of a real account), and settings plus the render model (`src/settings.ts`, `src/model.ts`), which holds every display rule. Next is the renderer (build step 4).
+**Status:** build steps 1–4 are done: the skeleton, the GitHub collector (`src/github/`), settings and the render model (`src/settings.ts`, `src/model.ts`), and the renderer (`src/render/`). Next is the workflow that runs it hourly and deploys to Pages (build step 5).
 
 ## Docs
 

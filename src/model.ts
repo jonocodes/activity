@@ -40,6 +40,8 @@ export interface Model {
   };
   overview: { licences: { name: string; count: number }[]; languages: { name: string; commits: number; share: number }[] };
   heatmap: { date: string; count: number }[];
+  /** When the owner works, over the last 12 months, in their time zone: weekdays Monday first, hours 0–23. */
+  habits: { weekdays: number[]; hours: number[] };
   /** Items per kind across all years, for the feed's filter chips. */
   kindCounts: Partial<Record<Kind, number>>;
   feed: { weeks: Week[] };
@@ -155,6 +157,13 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
   if (rest) shown.push(['Other', rest]);
   const langTotal = shown.reduce((s, [, n]) => s + n, 0);
 
+  const hourFmt = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hourCycle: 'h23', weekday: 'short' });
+  const habits = { weekdays: new Array(7).fill(0), hours: new Array(24).fill(0) };
+  for (const i of recent) {
+    const parts = Object.fromEntries(hourFmt.formatToParts(new Date(i.at)).map(p => [p.type, p.value]));
+    habits.hours[Number(parts.hour)]++;
+    habits.weekdays[['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(parts.weekday)]++;
+  }
   const kindCounts: Partial<Record<Kind, number>> = {};
   for (const i of feed) kindCounts[i.kind] = (kindCounts[i.kind] ?? 0) + 1;
 
@@ -172,6 +181,7 @@ export function buildModel(db: Database, settings: Settings, now: Date): Model {
       languages: shown.map(([name, commits]) => ({ name, commits, share: commits / langTotal })),
     },
     heatmap: lastYearDays,
+    habits,
     kindCounts,
     feed: { weeks: weeksOf(recent, day) },
     years,

@@ -7,6 +7,7 @@ import { createClient, type Transport } from '../src/github/client.ts';
 import { collectGitHub } from '../src/github/collect.ts';
 import { loadRecording, replayTransport } from '../src/github/record.ts';
 import { buildModel, type Model } from '../src/model.ts';
+import { renderSite } from '../src/render/site.ts';
 import { loadSettings } from '../src/settings.ts';
 import { fakeGitHub, repo, ref, commitNode, searchHit, type World } from './support/fake-github.ts';
 
@@ -41,12 +42,13 @@ const privateWorld = (): World => ({
     [`acme/${C}`]: { nameWithOwner: `acme/${C}`, isPrivate: true, description: `${C} external description`, stargazerCount: 0, licenseInfo: null, primaryLanguage: null } },
 });
 
-test('privacy: nothing private reaches the database, the render model or the log', async () => {
+test('privacy: nothing private reaches the database, the render model, the site or the log', async () => {
   for (const env of [{}, { ACTIVITY_FEED_COMMENTS: 'true', ACTIVITY_FAVORITES: `acme/${C},fixture-owner/tool` }] as Record<string, string>[]) {
     const { model, log, tables } = await pipeline(fakeGitHub(privateWorld()), 'fixture-owner', new Date('2026-11-25T12:00:00Z'), env);
     const modelText = JSON.stringify(model);
     assert.ok(!tables.includes(C), 'database');
     assert.ok(!modelText.includes(C), 'render model');
+    for (const [path, content] of Object.entries(renderSite(model))) assert.ok(!content.includes(C), `dist/${path}`);
     assert.ok(!log.includes(C), 'log');
     assert.match(log, /dropped as private: \d+/);
     assert.ok(model.stats.allTime.commits === 1 && model.stats.allTime.issues === 1, 'the public work is all still there');
