@@ -112,6 +112,16 @@ test('every page applies a saved color mode before it draws; the toggle and both
   assert.match(files['site.js'], /className = 'theme'/);
 });
 
+test('a custom title is a headline: line breaks, starred words in red, and the page still says whose it is', () => {
+  const files = site({ ACTIVITY_TITLE: '*A LOT* GOING ON | AT THE <MOMENT>' });
+  const html = files['index.html'];
+  assert.match(html, /<h1 class="headline"><span class="hot">A LOT<\/span> GOING ON<br>AT THE &lt;MOMENT&gt;<\/h1>/, 'escaped, like everything else');
+  assert.match(html, /<p class="profile"><span><a href="https:\/\/github.com\/fixture-owner">fixture-owner<\/a> on GitHub<\/span>/);
+  assert.match(html, /<title>A LOT GOING ON AT THE &lt;MOMENT&gt; · fixture-owner on GitHub<\/title>/);
+  assert.match(files['2023/index.html'], /← A LOT GOING ON AT THE &lt;MOMENT&gt;<\/a>/, 'year pages link back with the plain title');
+  assert.ok(!site()['index.html'].includes('class="headline"'), 'the default title stays plain');
+});
+
 test('the main page (snapshot)', (t) => {
   t.assert.snapshot(site()['index.html']);
 });

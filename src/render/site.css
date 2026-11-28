@@ -14,7 +14,8 @@
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
 a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
 .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 64px; }
-h1 { font-size: 1.7em; margin: 0 0 4px; } h2 { font-size: 1.15em; margin: 28px 0 8px; }
+h1 { font-size: 1.7em; margin: 0 0 4px; }
+h1.headline { font-size: 2.3em; font-weight: 800; line-height: 1.05; letter-spacing: .01em; margin: 0 0 10px; } .hot { color: light-dark(#cf222e, #ff5a50); } h2 { font-size: 1.15em; margin: 28px 0 8px; }
 h3 { font-size: .8em; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 18px 0 4px; border-bottom: 1px solid var(--line); padding-bottom: 2px; font-weight: 600; }
 .muted { color: var(--muted); } .small { font-size: .85em; }
 .profile { color: var(--muted); margin: 4px 0 12px; } .profile > span + span::before { content: " · "; }
@@ -75,6 +76,7 @@ footer p { margin: 4px 0; }
 .k-discussion_reply { background: var(--k-discussion_reply); } .k-review { background: var(--k-review); } .k-new_repo { background: var(--k-new_repo); } .k-fork { background: var(--k-fork); }
 .k-issue_comment, .k-commit_comment { background: var(--k-issue_comment); }
 @media (max-width: 760px) {
+  h1.headline { font-size: 1.85em; }
   .theme .word { display: none; }
   .stats .grp + .grp { border-left: none; padding-left: 0; }
   .overview, .habits, .proj.wide, .axis { grid-template-columns: 1fr; }

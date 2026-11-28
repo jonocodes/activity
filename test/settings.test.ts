@@ -7,7 +7,7 @@ const errorsOf = (env: Record<string, string>) => { try { loadSettings(env); ret
 test('every setting has a default; the owner defaults to the repo owner', () => {
   const s = loadSettings({ GITHUB_REPOSITORY_OWNER: 'octo' });
   assert.deepEqual(s, {
-    user: 'octo', title: 'octo on GitHub', timezone: 'UTC', favorites: [],
+    user: 'octo', title: 'octo on GitHub', headline: null, timezone: 'UTC', favorites: [],
     sections: SECTIONS.filter(x => x !== 'habits'), feedComments: false, sourceRepo: null,
   });
 });
@@ -17,12 +17,19 @@ test('settings come from ACTIVITY_* env vars', () => {
     ACTIVITY_USER: 'someone', ACTIVITY_TITLE: 'My work', ACTIVITY_TIMEZONE: 'America/Los_Angeles',
     ACTIVITY_FAVORITES: 'someone/tool, other/lib', ACTIVITY_SECTIONS: 'stats,feed', ACTIVITY_FEED_COMMENTS: 'true',
   });
-  assert.deepEqual(s, { user: 'someone', title: 'My work', timezone: 'America/Los_Angeles', favorites: ['someone/tool', 'other/lib'], sections: ['stats', 'feed'], feedComments: true, sourceRepo: null });
+  assert.deepEqual(s, { user: 'someone', title: 'My work', headline: [[{ text: 'My work', accent: false }]], timezone: 'America/Los_Angeles', favorites: ['someone/tool', 'other/lib'], sections: ['stats', 'feed'], feedComments: true, sourceRepo: null });
 });
 
 test('the repo the page is built from comes from GITHUB_REPOSITORY, which Actions sets', () => {
   assert.equal(loadSettings({ ACTIVITY_USER: 'octo', GITHUB_REPOSITORY: 'octo/activity' }).sourceRepo, 'octo/activity');
   assert.deepEqual(errorsOf({ ACTIVITY_USER: 'octo', GITHUB_REPOSITORY: 'not a repo' }), ['GITHUB_REPOSITORY "not a repo" is not owner/repo']);
+});
+
+test('ACTIVITY_TITLE is a headline: *starred* words are accented, | breaks the line', () => {
+  const s = loadSettings({ ACTIVITY_USER: 'octo', ACTIVITY_TITLE: '*A LOT* GOING ON | AT THE MOMENT' });
+  assert.deepEqual(s.headline, [[{ text: 'A LOT', accent: true }, { text: ' GOING ON', accent: false }], [{ text: 'AT THE MOMENT', accent: false }]]);
+  assert.equal(s.title, 'A LOT GOING ON AT THE MOMENT', 'the plain title for the browser tab');
+  assert.match(errorsOf({ ACTIVITY_USER: 'octo', ACTIVITY_TITLE: '*A LOT GOING ON' })[0], /unmatched \*/);
 });
 
 test('in Actions, settings arrive as one JSON of all repo variables; a real env var wins', () => {

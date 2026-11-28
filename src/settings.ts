@@ -6,7 +6,10 @@ export type Section = typeof SECTIONS[number];
 
 export interface Settings {
   user: string;
+  /** Plain text: the browser tab, links back to the main page. */
   title: string;
+  /** A custom ACTIVITY_TITLE as lines of segments (*starred* words are accented); null for the default "<user> on GitHub". */
+  headline: HeadlineSegment[][] | null;
   timezone: string;
   favorites: string[];
   sections: Section[];
@@ -14,6 +17,8 @@ export interface Settings {
   /** owner/repo this page is built from, linked in the footer; GITHUB_REPOSITORY in Actions */
   sourceRepo: string | null;
 }
+
+export interface HeadlineSegment { text: string; accent: boolean }
 
 export class SettingsError extends Error {
   readonly problems: string[];
@@ -56,11 +61,22 @@ export function loadSettings(env: Record<string, string | undefined>): Settings 
   const commentsRaw = get('ACTIVITY_FEED_COMMENTS') ?? 'false';
   if (!/^(true|false)$/i.test(commentsRaw)) problems.push(`ACTIVITY_FEED_COMMENTS "${commentsRaw}" is not true or false`);
 
+  const titleRaw = get('ACTIVITY_TITLE');
+  const headline = titleRaw ? parseHeadline(titleRaw) : null;
+  if (titleRaw && titleRaw.split('|').some(line => (line.match(/\*/g) ?? []).length % 2)) problems.push(`ACTIVITY_TITLE "${titleRaw}" has an unmatched * (put * on both sides of the words to color, on one line)`);
+
   const sourceRepo = env.GITHUB_REPOSITORY?.trim() || null;
   if (sourceRepo && !/^[\w.-]+\/[\w.-]+$/.test(sourceRepo)) problems.push(`GITHUB_REPOSITORY "${sourceRepo}" is not owner/repo`);
 
   if (problems.length) throw new SettingsError(problems);
-  return { user: user!, title: get('ACTIVITY_TITLE') ?? `${user} on GitHub`, timezone, favorites, sections: sections as Section[], feedComments: /^true$/i.test(commentsRaw), sourceRepo };
+  const title = headline ? headline.map(line => line.map(s => s.text).join('')).join(' ').replace(/\s+/g, ' ').trim() : `${user} on GitHub`;
+  return { user: user!, title, headline, timezone, favorites, sections: sections as Section[], feedComments: /^true$/i.test(commentsRaw), sourceRepo };
+}
+
+/** "*A LOT* GOING ON | AT THE MOMENT" → two lines; "A LOT" accented. */
+function parseHeadline(raw: string): HeadlineSegment[][] {
+  return raw.split('|').map(line => line.trim()).filter(Boolean)
+    .map(line => line.split('*').map((text, i) => ({ text, accent: i % 2 === 1 })).filter(s => s.text));
 }
 
 const list = (v: string | undefined) => (v ?? '').split(',').map(s => s.trim()).filter(Boolean);

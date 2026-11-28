@@ -10,9 +10,11 @@ const GROUP: Record<Kind, string> = { commit: '{n} commits', pr: 'opened {n} pul
 const asset = (name: string) => readFileSync(new URL(name, import.meta.url), 'utf8');
 
 /** Every file of the site, by path relative to the site root. */
+const tabTitle = (m: Model) => m.headline ? `${m.title} · ${m.owner} on GitHub` : m.title;
+
 export function renderSite(m: Model): Record<string, string> {
-  const files: Record<string, string> = { 'site.css': asset('./site.css'), 'site.js': asset('./site.js'), 'index.html': page(m, '', m.title, mainBody(m)).value };
-  m.years.forEach((y, i) => { files[`${y.year}/index.html`] = page(m, '../', `${y.year} · ${m.title}`, yearPage(m, y, m.years[i + 1]?.year, m.years[i - 1]?.year)).value; });
+  const files: Record<string, string> = { 'site.css': asset('./site.css'), 'site.js': asset('./site.js'), 'index.html': page(m, '', tabTitle(m), mainBody(m)).value };
+  m.years.forEach((y, i) => { files[`${y.year}/index.html`] = page(m, '../', `${y.year} · ${tabTitle(m)}`, yearPage(m, y, m.years[i + 1]?.year, m.years[i - 1]?.year)).value; });
   files['summary.json'] = JSON.stringify({ owner: m.owner, builtAt: m.builtAt, kinds: m.kindCounts, items: Object.values(m.kindCounts).reduce((s, n) => s + (n ?? 0), 0) }, null, 2) + '\n';
   return files;
 }
@@ -38,10 +40,16 @@ ${body}
 </html>
 `;
 
+/** The default "<user> on GitHub", or the owner's headline: big, heavy, its own line breaks, *starred* words in red. */
+function heading(m: Model) {
+  if (!m.headline) return h`<h1>${m.title}</h1>`;
+  return h`<h1 class="headline">${m.headline.map((line, i) => h`${i ? raw('<br>') : null}${line.map(s => s.accent ? h`<span class="hot">${s.text}</span>` : s.text)}`)}</h1>`;
+}
+
 function mainBody(m: Model): Html {
   const on = (s: Model['sections'][number]) => m.sections.includes(s);
   const tabs = ([['feed', 'Feed'], ['projects', 'Projects'], ['contributing', 'Contributing to']] as const).filter(([s]) => on(s));
-  return h`<h1>${m.title}</h1>
+  return h`${heading(m)}
 ${on('profile') ? profile(m) : null}
 ${on('stats') ? stats(m) : null}
 ${on('overview') ? overview(m) : null}
@@ -56,7 +64,7 @@ ${on('contributing') ? contributingPanel(m) : null}`;
 // ---------- top of the page ----------
 function profile(m: Model) {
   const p = m.profile;
-  return h`<p class="profile">${[p.yearsActive > 0 && h`<span>${p.yearsActive} year${p.yearsActive === 1 ? '' : 's'} of open source</span>`, h`<span><a href="${p.achievementsUrl}">achievements</a></span>`]}</p>`;
+  return h`<p class="profile">${[m.headline && h`<span><a href="https://github.com/${p.login}">${p.login}</a> on GitHub</span>`, p.yearsActive > 0 && h`<span>${p.yearsActive} year${p.yearsActive === 1 ? '' : 's'} of open source</span>`, h`<span><a href="${p.achievementsUrl}">achievements</a></span>`]}</p>`;
 }
 function stats(m: Model) {
   const s = m.stats, n = (v: number, l: string) => h`<div><span class="n">${v.toLocaleString('en-US')}</span><span class="l">${l}</span></div>`;
