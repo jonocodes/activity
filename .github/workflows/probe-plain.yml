@@ -1,0 +1,19 @@
+# TEMPORARY schedule probe (plain). An A/B test of why build.yml's hourly cron fires rarely:
+# probe-plain only runs; probe-enable also calls `gh workflow enable` on itself, like build.yml's keep-alive.
+# Delete both probes once the comparison is done.
+name: probe-plain
+
+on:
+  schedule:
+    - cron: '8,23,38,53 * * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - run: echo "scheduled run at $(date -u +%FT%TZ)"
