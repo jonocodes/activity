@@ -26,6 +26,7 @@ const page = (m: Model, base: string, title: string, body: Html) => h`<!doctype 
 <title>${title}</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="${base}site.css">
+<script>try { const t = localStorage.getItem('activity-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}</script>
 <script defer src="${base}site.js"></script>
 </head>
 <body>

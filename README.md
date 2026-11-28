@@ -11,7 +11,7 @@ GitHub spreads this across the profile graph, the repositories tab, search and p
 ## How it works
 
 - A GitHub Actions workflow in your fork runs hourly. It fetches your public activity from the GitHub API, renders one static HTML page, and deploys it to GitHub Pages. Each run fetches everything again (a few minutes); keeping data between runs, for speed and for history GitHub forgets, [may come later](https://github.com/jonocodes/activity/issues/2).
-- Visitors get a plain static page. Nothing in the browser calls GitHub. The main page holds the last 12 months; each older year is its own small page, loaded only when you open that year, so the first load stays small on a phone.
+- Visitors get a plain static page. Nothing in the browser calls GitHub. The main page holds the last 12 months; each older year is its own small page, loaded only when you open that year, so the first load stays small on a phone. It follows the visitor's light or dark system setting, and a button in the corner switches it.
 - The token can only read public data, so nothing private can end up on the page or in the public Actions logs.
 - Settings are Actions variables in your fork's settings, not files in the repo, and all of them are optional. You never edit code, so "Sync fork" keeps working.
 

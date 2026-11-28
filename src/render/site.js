@@ -3,6 +3,23 @@
 (() => {
   const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
+  // ---------- color mode: Auto (the system's) → Light → Dark, remembered in this browser ----------
+  const MODES = [['auto', '◐ Auto', 'follows your system'], ['light', '☀ Light', 'always light'], ['dark', '☾ Dark', 'always dark']];
+  const toggle = document.createElement('button');
+  toggle.type = 'button'; toggle.className = 'theme';
+  const setMode = (id) => {
+    const i = Math.max(0, MODES.findIndex(m => m[0] === id)), [mode, label, what] = MODES[i];
+    if (mode === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = mode;
+    try { if (mode === 'auto') localStorage.removeItem('activity-theme'); else localStorage.setItem('activity-theme', mode); } catch {}
+    const icon = document.createElement('span'), word = document.createElement('span');
+    icon.textContent = label.slice(0, 1); word.className = 'word'; word.textContent = label.slice(1);   // narrow screens show the icon only
+    toggle.replaceChildren(icon, word); toggle.dataset.mode = mode; toggle.setAttribute('aria-label', `Color mode: ${label.slice(2)}`);
+    toggle.title = `Color mode: ${label.slice(2)} (${what}). Click for ${MODES[(i + 1) % 3][1].slice(2)}.`;
+  };
+  setMode(document.documentElement.dataset.theme ?? 'auto');
+  toggle.addEventListener('click', () => setMode(MODES[(MODES.findIndex(m => m[0] === toggle.dataset.mode) + 1) % 3][0]));
+  $('main.wrap')?.prepend(toggle);
+
   // ---------- dates: hover shows the exact time in the visitor's own time zone; items under a week old say how long ago ----------
   // Days, groups and weeks stay in the owner's time zone (built once for everyone); these two are right for every visitor.
   const local = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });

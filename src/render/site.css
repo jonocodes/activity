@@ -1,9 +1,15 @@
-/* The page's only stylesheet. Light and dark follow the system; dark colors are chosen for the dark background. */
-:root { --bg:#fff; --fg:#1f2328; --muted:#656d76; --line:#d8dee4; --card:#f6f8fa; --accent:#0969da; --heat:#2da44e; --viz:#2a78d6; --viz-track:#dbe8f8;
-  --k-commit:#0969da; --k-pr:#8250df; --k-issue:#1a7f37; --k-discussion:#bf8700; --k-discussion_reply:#9a6700; --k-review:#cf222e;
-  --k-new_repo:#bc4c00; --k-fork:#57606a; --k-issue_comment:#8c959f; --k-commit_comment:#8c959f; color-scheme: light dark; }
-@media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8d96a0; --line:#30363d; --card:#161b22; --accent:#4493f8; --heat:#3fb950; --viz:#3987e5; --viz-track:#1f2d40;
-  --k-commit:#4493f8; --k-pr:#a371f7; --k-issue:#3fb950; --k-discussion:#d29922; --k-discussion_reply:#bb8009; --k-review:#f85149; --k-new_repo:#db6d28; --k-fork:#8d96a0; } }
+/* The page's only stylesheet. Light and dark follow the system unless the visitor picks one (site.js); dark colors are chosen for the dark background. */
+:root { color-scheme: light dark;   /* light-dark() follows this: the system's choice, unless the toggle set one */
+  --bg: light-dark(#fff, #0d1117); --fg: light-dark(#1f2328, #e6edf3); --muted: light-dark(#656d76, #8d96a0); --line: light-dark(#d8dee4, #30363d);
+  --card: light-dark(#f6f8fa, #161b22); --accent: light-dark(#0969da, #4493f8); --heat: light-dark(#2da44e, #3fb950);
+  --viz: light-dark(#2a78d6, #3987e5); --viz-track: light-dark(#dbe8f8, #1f2d40);
+  --k-commit: light-dark(#0969da, #4493f8); --k-pr: light-dark(#8250df, #a371f7); --k-issue: light-dark(#1a7f37, #3fb950);
+  --k-discussion: light-dark(#bf8700, #d29922); --k-discussion_reply: light-dark(#9a6700, #bb8009); --k-review: light-dark(#cf222e, #f85149);
+  --k-new_repo: light-dark(#bc4c00, #db6d28); --k-fork: light-dark(#57606a, #8d96a0); --k-issue_comment: #8c959f; --k-commit_comment: #8c959f; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+.theme { float: right; margin-top: 6px; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font: inherit; font-size: .8em; color: var(--muted); cursor: pointer; }
+.theme:hover { color: var(--fg); }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
 a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
@@ -69,6 +75,7 @@ footer p { margin: 4px 0; }
 .k-discussion_reply { background: var(--k-discussion_reply); } .k-review { background: var(--k-review); } .k-new_repo { background: var(--k-new_repo); } .k-fork { background: var(--k-fork); }
 .k-issue_comment, .k-commit_comment { background: var(--k-issue_comment); }
 @media (max-width: 760px) {
+  .theme .word { display: none; }
   .stats .grp + .grp { border-left: none; padding-left: 0; }
   .overview, .habits, .proj.wide, .axis { grid-template-columns: 1fr; }
   .proj.wide .chart { grid-row: auto; grid-column: 1; margin-top: 6px; } .axis > span { display: none; }

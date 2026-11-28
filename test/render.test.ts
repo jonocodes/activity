@@ -103,6 +103,15 @@ test('repos contributed to is in the stats strip, not in the Contributing to pan
   assert.match(html, /<div class="chart per-year">[\s\S]*?<\/div>\n<div class="axis">/, 'the per-year chart, closed off by its line, then the rows\' axis');
 });
 
+test('every page applies a saved color mode before it draws; the toggle and both palettes ship', () => {
+  const files = site();
+  for (const page of ['index.html', '2023/index.html']) assert.match(files[page], /<head>[\s\S]*localStorage\.getItem\('activity-theme'\)[\s\S]*<\/head>/, page);
+  assert.match(files['site.css'], /:root\[data-theme="dark"\] \{ color-scheme: dark; \}/);
+  assert.match(files['site.css'], /--bg: light-dark\(#fff, #0d1117\)/);
+  assert.ok(!files['site.css'].includes('prefers-color-scheme'), 'one palette, switched by color-scheme');
+  assert.match(files['site.js'], /className = 'theme'/);
+});
+
 test('the main page (snapshot)', (t) => {
   t.assert.snapshot(site()['index.html']);
 });
